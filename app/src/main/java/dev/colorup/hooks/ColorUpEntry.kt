@@ -3,20 +3,33 @@ package dev.colorup.hooks
 import android.animation.ValueAnimator
 import android.app.Application
 import android.content.Context
+import android.database.ContentObserver
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import de.robv.android.xposed.IXposedHookLoadPackage
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import de.robv.android.xposed.callbacks.XC_LoadPackage
 import org.json.JSONObject
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Legacy Xposed runtime.
- * First real hook: change app-unlock animator duration only when called from
- * Samsung's KeyguardSecLegacyUnlockAnimationControllerImpl.
+ * The first system hook adjusts ValueAnimator duration only when the caller
+ * is Samsung's keyguard app-unlock controller. Configuration is refreshed
+ * through a read-only ContentProvider observer without restarting SystemUI.
  */
 class ColorUpEntry : IXposedHookLoadPackage {
+    private data class AppUnlockConfig(val enabled: Boolean, val durationMs: Long)
+
+    private val appUnlockConfig = AtomicReference<AppUnlockConfig?>(null)
+    private val hookInstalled = AtomicBoolean(false)
+    private val configUri = Uri.parse("content://dev.colorup.config/config")
+    private val targetClass = "com.android.systemui.keyguard.KeyguardSecLegacyUnlockAnimationControllerImpl"
+
     override fun handleLoadPackage(lpparam: XC_LoadPackage.LoadPackageParam) {
         val pkg = lpparam.packageName
         if (pkg != "com.android.systemui" && pkg != "com.sec.android.app.launcher") return
@@ -28,8 +41,11 @@ class ColorUpEntry : IXposedHookLoadPackage {
                 object : XC_MethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) {
                         val context = param.args[0] as? Context ?: return
-                        val config = readConfig(context, pkg) ?: return
-                        if (pkg == "com.android.systemui") installAppUnlockDurationHook(lpparam, config)
+                        refreshConfig(context, pkg)
+                        if (pkg == "com.android.systemui") {
+                            installConfigObserver(context, pkg)
+                            installAppUnlockDurationHook(lpparam)
+                        }
                     }
                 }
             )
@@ -40,10 +56,7 @@ class ColorUpEntry : IXposedHookLoadPackage {
 
     private fun readConfig(context: Context, pkg: String): JSONObject? {
         return try {
-            context.contentResolver.query(
-                Uri.parse("content://dev.colorup.config/config"),
-                arrayOf("json"), null, null, null
-            )?.use { cursor ->
+            context.contentResolver.query(configUri, arrayOf("json"), null, null, null)?.use { cursor ->
                 if (!cursor.moveToFirst()) return null
                 XposedBridge.log("ColorUp: config bridge connected in " + pkg)
                 JSONObject(cursor.getString(0))
@@ -54,21 +67,39 @@ class ColorUpEntry : IXposedHookLoadPackage {
         }
     }
 
-    private fun installAppUnlockDurationHook(
-        lpparam: XC_LoadPackage.LoadPackageParam,
-        root: JSONObject
-    ) {
-        val targetClass = "com.android.systemui.keyguard.KeyguardSecLegacyUnlockAnimationControllerImpl"
+    private fun refreshConfig(context: Context, pkg: String) {
+        val root = readConfig(context, pkg) ?: return
+        val item = findAnimation(root, "unlock_to_app")
+        val next = item?.let {
+            AppUnlockConfig(
+                enabled = it.optBoolean("enabled", false),
+                durationMs = it.optInt("durationMs", 320).coerceIn(0, 2000).toLong()
+            )
+        }
+        appUnlockConfig.set(next)
+        XposedBridge.log("ColorUp: app-unlock config refreshed; enabled=" + (next?.enabled == true))
+    }
+
+    private fun installConfigObserver(context: Context, pkg: String) {
+        try {
+            val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+                override fun onChange(selfChange: Boolean) {
+                    refreshConfig(context, pkg)
+                }
+            }
+            context.contentResolver.registerContentObserver(configUri, false, observer)
+        } catch (error: Throwable) {
+            XposedBridge.log("ColorUp: live config observer unavailable: " + error)
+        }
+    }
+
+    private fun installAppUnlockDurationHook(lpparam: XC_LoadPackage.LoadPackageParam) {
+        if (!hookInstalled.compareAndSet(false, true)) return
         if (XposedHelpers.findClassIfExists(targetClass, lpparam.classLoader) == null) {
+            hookInstalled.set(false)
             XposedBridge.log("ColorUp: app-unlock duration unsupported; target class missing")
             return
         }
-        val item = findAnimation(root, "unlock_to_app") ?: return
-        if (!item.optBoolean("enabled", false)) {
-            XposedBridge.log("ColorUp: app-unlock duration is disabled")
-            return
-        }
-        val duration = item.optInt("durationMs", 320).coerceIn(0, 2000).toLong()
         try {
             XposedHelpers.findAndHookMethod(
                 ValueAnimator::class.java,
@@ -76,12 +107,15 @@ class ColorUpEntry : IXposedHookLoadPackage {
                 java.lang.Long.TYPE,
                 object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam) {
-                        if (isAppUnlockCall()) param.args[0] = duration
+                        if (!isAppUnlockCall()) return
+                        val config = appUnlockConfig.get() ?: return
+                        if (config.enabled) param.args[0] = config.durationMs
                     }
                 }
             )
-            XposedBridge.log("ColorUp: app-unlock duration hook installed (" + duration + "ms)")
+            XposedBridge.log("ColorUp: app-unlock duration hook installed; waiting for enabled config")
         } catch (error: Throwable) {
+            hookInstalled.set(false)
             XposedBridge.log("ColorUp: app-unlock duration hook unavailable: " + error)
         }
     }
@@ -96,7 +130,5 @@ class ColorUpEntry : IXposedHookLoadPackage {
     }
 
     private fun isAppUnlockCall(): Boolean =
-        Thread.currentThread().stackTrace.any {
-            it.className == "com.android.systemui.keyguard.KeyguardSecLegacyUnlockAnimationControllerImpl"
-        }
+        Thread.currentThread().stackTrace.any { it.className == targetClass }
 }
