@@ -11,6 +11,10 @@ import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
+import android.view.animation.AccelerateInterpolator
+import android.view.animation.AccelerateDecelerateInterpolator
+import android.view.animation.LinearInterpolator
+import android.view.animation.OvershootInterpolator
 import de.robv.android.xposed.IXposedHookLoadPackage
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
@@ -32,7 +36,7 @@ import java.util.concurrent.atomic.AtomicReference
  */
 class ColorUpEntry : IXposedHookLoadPackage {
     private data class AppUnlockConfig(val enabled: Boolean, val durationMs: Long)
-    private data class UnlockHomeConfig(val enabled: Boolean, val durationMs: Long)
+    private data class UnlockHomeConfig(val enabled: Boolean, val durationMs: Long, val scale: Float, val fade: Float, val translateY: Int, val delayMs: Long, val curve: String, val damping: Float, val stiffness: Float, val direction: String)
     private data class PanelConfig(val enabled: Boolean, val scale: Float, val translateY: Int, val curve: String, val springDamping: Float, val springStiffness: Float, val direction: String)
     private data class NotificationConfig(val enabled: Boolean, val durationMs: Long, val offsetDp: Int)
 
@@ -107,7 +111,18 @@ class ColorUpEntry : IXposedHookLoadPackage {
             AppUnlockConfig(it.optBoolean("enabled", false), it.optInt("durationMs", 320).coerceIn(0, 2000).toLong())
         })
         unlockHomeConfig.set(findAnimation(root, "unlock_to_home")?.let {
-            UnlockHomeConfig(it.optBoolean("enabled", false), it.optInt("durationMs", 320).coerceIn(0, 2000).toLong())
+            UnlockHomeConfig(
+                enabled = it.optBoolean("enabled", false),
+                durationMs = it.optInt("durationMs", 320).coerceIn(0, 2000).toLong(),
+                scale = it.optDouble("scale", 1.0).toFloat().coerceIn(0.5f, 1.5f),
+                fade = it.optDouble("fade", 1.0).toFloat().coerceIn(0f, 1f),
+                translateY = it.optInt("translateY", 24).coerceIn(-150, 150),
+                delayMs = it.optInt("delayMs", 0).coerceIn(0, 1000).toLong(),
+                curve = it.optString("curve", "STANDARD"),
+                damping = it.optDouble("springDamping", 0.82).toFloat().coerceIn(0.1f, 2f),
+                stiffness = it.optDouble("springStiffness", 420.0).toFloat().coerceIn(50f, 1500f),
+                direction = it.optString("direction", "UP")
+            )
         })
         shadeOpenConfig.set(panelConfig(root, "shade_open"))
         shadeCloseConfig.set(panelConfig(root, "shade_close"))
@@ -160,7 +175,7 @@ class ColorUpEntry : IXposedHookLoadPackage {
         val target = XposedHelpers.findClassIfExists(cellLayoutClass, lpparam.classLoader)
         if (target == null) {
             unlockHomeHookInstalled.set(false)
-            XposedBridge.log("ColorUp: unlock-to-home duration unsupported; CellLayout class missing")
+            XposedBridge.log("ColorUp: unlock-to-home unsupported; CellLayout class missing")
             return
         }
         try {
@@ -171,7 +186,7 @@ class ColorUpEntry : IXposedHookLoadPackage {
             }
             if (candidates.isEmpty()) {
                 unlockHomeHookInstalled.set(false)
-                XposedBridge.log("ColorUp: unlock-to-home duration unsupported; matching CellLayout method missing")
+                XposedBridge.log("ColorUp: unlock-to-home unsupported; matching CellLayout method missing")
                 return
             }
             candidates.forEach { method ->
@@ -181,16 +196,80 @@ class ColorUpEntry : IXposedHookLoadPackage {
                         if (!config.enabled) return
                         val view = param.args.getOrNull(0) as? View ?: return
                         if (view.isAttachedToWindow) return
+
+                        val pivot = when (config.direction) {
+                            "UP" -> (view.width / 2f) to view.height.toFloat()
+                            "DOWN" -> (view.width / 2f) to 0f
+                            "LEFT" -> view.width.toFloat() to (view.height / 2f)
+                            "RIGHT" -> 0f to (view.height / 2f)
+                            else -> (view.width / 2f) to (view.height / 2f)
+                        }
+                        view.pivotX = pivot.first
+                        view.pivotY = pivot.second
+                        view.alpha = 0f
+                        view.scaleX = config.scale
+                        view.scaleY = config.scale
+                        view.translationY = config.translateY * view.resources.displayMetrics.density
                         param.args[2] = config.durationMs
+                        param.setObjectExtra(UNLOCK_HOME_VIEW_KEY, view)
+                        param.setObjectExtra(UNLOCK_HOME_CONFIG_KEY, config)
+                    }
+
+                    override fun afterHookedMethod(param: MethodHookParam) {
+                        val view = param.getObjectExtra(UNLOCK_HOME_VIEW_KEY) as? View ?: return
+                        val config = param.getObjectExtra(UNLOCK_HOME_CONFIG_KEY) as? UnlockHomeConfig ?: return
+                        if (param.hasThrowable()) {
+                            view.alpha = 1f
+                            view.scaleX = 1f
+                            view.scaleY = 1f
+                            view.translationY = 0f
+                            return
+                        }
+                        val animateIntoPlace = {
+                            view.animate().cancel()
+                            view.animate()
+                                .alpha(config.fade)
+                                .scaleX(1f)
+                                .scaleY(1f)
+                                .translationY(0f)
+                                .setStartDelay(config.delayMs)
+                                .setDuration(config.durationMs)
+                                .setInterpolator(unlockInterpolator(config))
+                                .start()
+                        }
+                        if (view.isAttachedToWindow) {
+                            animateIntoPlace()
+                        } else {
+                            val listener = object : View.OnAttachStateChangeListener {
+                                override fun onViewAttachedToWindow(v: View) {
+                                    view.removeOnAttachStateChangeListener(this)
+                                    animateIntoPlace()
+                                }
+                                override fun onViewDetachedFromWindow(v: View) = Unit
+                            }
+                            view.addOnAttachStateChangeListener(listener)
+                        }
                     }
                 })
             }
-            XposedBridge.log("ColorUp: unlock-to-home duration hook installed (" + candidates.size + " target method(s))")
+            XposedBridge.log("ColorUp: unlock-to-home hooks installed (" + candidates.size + " target method(s))")
         } catch (error: Throwable) {
             unlockHomeHookInstalled.set(false)
-            XposedBridge.log("ColorUp: unlock-to-home duration hook unavailable: " + error)
+            XposedBridge.log("ColorUp: unlock-to-home hook unavailable: " + error)
         }
     }
+
+    private fun unlockInterpolator(config: UnlockHomeConfig): android.view.animation.Interpolator =
+        when (config.curve) {
+            "LINEAR" -> LinearInterpolator()
+            "EASE_IN" -> AccelerateInterpolator()
+            "EASE_OUT" -> DecelerateInterpolator()
+            "EASE_IN_OUT", "STANDARD" -> AccelerateDecelerateInterpolator()
+            "SPRING" -> OvershootInterpolator(
+                ((config.stiffness / 420f) * (1f - config.damping)).coerceIn(0.1f, 3f)
+            )
+            else -> DecelerateInterpolator()
+        }
 
     private fun installAppUnlockDurationHook(lpparam: XC_LoadPackage.LoadPackageParam) {
         if (!appUnlockHookInstalled.compareAndSet(false, true)) return
@@ -371,6 +450,8 @@ class ColorUpEntry : IXposedHookLoadPackage {
 
     companion object {
         private const val CANVAS_SAVE_KEY = "colorup.canvas.save"
+        private const val UNLOCK_HOME_VIEW_KEY = "colorup.unlock.home.view"
+        private const val UNLOCK_HOME_CONFIG_KEY = "colorup.unlock.home.config"
         private const val NOTIFICATION_CONFIG_KEY = "colorup.notification.config"
     }
 }
