@@ -167,6 +167,11 @@ class ColorUpEntry : IXposedHookLoadPackage {
             val depthHooks = if (depthClass != null) {
                 XposedBridge.hookAllMethods(depthClass, "onPanelExpansionChanged", expansionCallback)
             } else emptySet()
+            if (splitHooks.isEmpty() && depthHooks.isEmpty()) {
+                quickSettingsHooksInstalled.set(false)
+                XposedBridge.log("ColorUp: Quick Settings hook unsupported; no expansion callback found")
+                return
+            }
 
             XposedHelpers.findAndHookMethod(
                 composeClass,
