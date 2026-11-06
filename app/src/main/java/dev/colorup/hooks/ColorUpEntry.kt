@@ -185,6 +185,7 @@ class ColorUpEntry : IXposedHookLoadPackage {
                         if (!isQuickSettingsRoot(view)) return
                         val canvas = param.args.firstOrNull { it is Canvas } as? Canvas ?: return
                         val progress = quickSettingsProgress.get()
+                        if (progress <= 0f) return
                         val scale = config.scale + (1f - config.scale) * progress
                         val offsetPx = config.translateY * view.resources.displayMetrics.density * (1f - progress)
                         val saveCount = canvas.save()
