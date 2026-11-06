@@ -312,7 +312,7 @@ class ColorUpEntry : IXposedHookLoadPackage {
                         } ?: return
                         if (!config.enabled) return
                         val canvas = param.args.firstOrNull { it is Canvas } as? Canvas ?: return
-                        val eased = easePanelProgress(progress, config)
+                        val eased = dev.colorup.MotionMath.ease(progress, config.curve, config.springDamping, config.springStiffness)
                         val scale = config.scale + (1f - config.scale) * eased
                         val offsetPx = config.translateY * view.resources.displayMetrics.density * (1f - eased)
                         val pivot = when (config.direction) {
@@ -340,23 +340,6 @@ class ColorUpEntry : IXposedHookLoadPackage {
             panelHooksInstalled.set(false)
             XposedBridge.log("ColorUp: panel hook unavailable: " + error)
         }
-    }
-
-    private fun easePanelProgress(progress: Float, config: PanelConfig): Float {
-        val t = progress.coerceIn(0f, 1f)
-        val value = when (config.curve) {
-            "LINEAR" -> t
-            "EASE_IN" -> t * t
-            "EASE_OUT" -> 1f - (1f - t) * (1f - t)
-            "EASE_IN_OUT" -> t * t * (3f - 2f * t)
-            "SPRING" -> {
-                val frequency = kotlin.math.sqrt((config.springStiffness / 420f).toDouble()) * 6.0
-                val decay = kotlin.math.exp(-config.springDamping.toDouble() * 6.0 * t.toDouble())
-                (1.0 - decay * kotlin.math.cos(frequency * t.toDouble())).toFloat()
-            }
-            else -> 1f - (1f - t) * (1f - t)
-        }
-        return value.coerceIn(0f, 1.15f)
     }
 
     private fun isInsideNamedRoot(view: View, targetName: String): Boolean {
