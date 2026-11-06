@@ -21,11 +21,12 @@ class AnimationConfigTest {
     fun presetChangesAreIndependentCopies() {
         val fluid = AnimationCatalog.preset("Fluid")
         assertTrue(fluid.first { it.id == "unlock_to_app" }.enabled)
+        assertTrue(fluid.first { it.id == "unlock_to_home" }.enabled)
         assertTrue(fluid.first { it.id == "shade_open" }.enabled)
         assertTrue(fluid.first { it.id == "shade_close" }.enabled)
         assertTrue(fluid.first { it.id == "qs_expand" }.enabled)
         assertTrue(fluid.first { it.id == "qs_collapse" }.enabled)
-        val implemented = setOf("unlock_to_app", "shade_open", "shade_close", "qs_expand", "qs_collapse")
+        val implemented = AnimationCatalog.experimentalHookIds
         assertTrue(fluid.filter { it.id !in implemented }.none { it.enabled })
         fluid.first().durationMs = 999
         assertFalse(AnimationCatalog.defaults.first().durationMs == 999)
