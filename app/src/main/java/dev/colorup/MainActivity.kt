@@ -93,6 +93,8 @@ class MainActivity : Activity() {
         panel.addView(CheckBox(this).apply {
             text = when (spec.id) {
                 "unlock_to_app" -> "Enable experimental app-unlock duration hook"
+                "keyguard_show" -> "Enable experimental lock-screen show duration"
+                "keyguard_hide" -> "Enable experimental lock-screen hide duration"
                 "shade_open" -> "Enable experimental shade opening transform"
                 "shade_close" -> "Enable experimental shade closing transform"
                 "qs_expand" -> "Enable experimental Quick Settings expand transform"
