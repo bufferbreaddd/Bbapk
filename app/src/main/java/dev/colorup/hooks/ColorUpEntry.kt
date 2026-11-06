@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicReference
 class ColorUpEntry : IXposedHookLoadPackage {
     private data class AppUnlockConfig(val enabled: Boolean, val durationMs: Long)
     private data class UnlockHomeConfig(val enabled: Boolean, val durationMs: Long)
-    private data class PanelConfig(val enabled: Boolean, val scale: Float, val translateY: Int)
+    private data class PanelConfig(val enabled: Boolean, val scale: Float, val translateY: Int, val curve: String, val springDamping: Float, val springStiffness: Float, val direction: String)
     private data class NotificationConfig(val enabled: Boolean, val durationMs: Long, val offsetDp: Int)
 
     private val appUnlockConfig = AtomicReference<AppUnlockConfig?>(null)
@@ -133,7 +133,11 @@ class ColorUpEntry : IXposedHookLoadPackage {
             PanelConfig(
                 enabled = it.optBoolean("enabled", false),
                 scale = it.optDouble("scale", 1.0).toFloat().coerceIn(0.5f, 1.5f),
-                translateY = it.optInt("translateY", 24).coerceIn(-150, 150)
+                translateY = it.optInt("translateY", 24).coerceIn(-150, 150),
+                curve = it.optString("curve", "STANDARD"),
+                springDamping = it.optDouble("springDamping", 0.82).toFloat().coerceIn(0.1f, 2f),
+                springStiffness = it.optDouble("springStiffness", 420.0).toFloat().coerceIn(50f, 1500f),
+                direction = it.optString("direction", "UP")
             )
         }
 
@@ -308,11 +312,19 @@ class ColorUpEntry : IXposedHookLoadPackage {
                         } ?: return
                         if (!config.enabled) return
                         val canvas = param.args.firstOrNull { it is Canvas } as? Canvas ?: return
-                        val scale = config.scale + (1f - config.scale) * progress
-                        val offsetPx = config.translateY * view.resources.displayMetrics.density * (1f - progress)
+                        val eased = easePanelProgress(progress, config)
+                        val scale = config.scale + (1f - config.scale) * eased
+                        val offsetPx = config.translateY * view.resources.displayMetrics.density * (1f - eased)
+                        val pivot = when (config.direction) {
+                            "UP" -> (view.width / 2f) to view.height.toFloat()
+                            "DOWN" -> (view.width / 2f) to 0f
+                            "LEFT" -> view.width.toFloat() to (view.height / 2f)
+                            "RIGHT" -> 0f to (view.height / 2f)
+                            else -> (view.width / 2f) to (view.height / 2f)
+                        }
                         val saveCount = canvas.save()
                         canvas.translate(0f, offsetPx)
-                        canvas.scale(scale, scale, view.width / 2f, view.height / 2f)
+                        canvas.scale(scale, scale, pivot.first, pivot.second)
                         param.setObjectExtra(CANVAS_SAVE_KEY, saveCount)
                     }
 
@@ -328,6 +340,23 @@ class ColorUpEntry : IXposedHookLoadPackage {
             panelHooksInstalled.set(false)
             XposedBridge.log("ColorUp: panel hook unavailable: " + error)
         }
+    }
+
+    private fun easePanelProgress(progress: Float, config: PanelConfig): Float {
+        val t = progress.coerceIn(0f, 1f)
+        val value = when (config.curve) {
+            "LINEAR" -> t
+            "EASE_IN" -> t * t
+            "EASE_OUT" -> 1f - (1f - t) * (1f - t)
+            "EASE_IN_OUT" -> t * t * (3f - 2f * t)
+            "SPRING" -> {
+                val frequency = kotlin.math.sqrt(config.springStiffness / 420f) * 6f
+                val decay = kotlin.math.exp(-config.springDamping * 6f * t)
+                1f - decay * kotlin.math.cos(frequency * t)
+            }
+            else -> 1f - (1f - t) * (1f - t)
+        }
+        return value.coerceIn(0f, 1.15f)
     }
 
     private fun isInsideNamedRoot(view: View, targetName: String): Boolean {
