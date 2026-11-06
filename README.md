@@ -3,7 +3,7 @@
 A per-transition animation configuration studio for Samsung One UI, inspired by fluid ColorOS-style motion.
 
 **Compatibility target:** One UI 8.5, device-model agnostic by design. Actual support is determined by the installed hook runtime and the tested One UI build.  
-**App:** ColorUp · **Current preview:** 0.8.0
+**App:** ColorUp · **Current preview:** 0.9.0
 
 ## What works in this preview
 
@@ -21,7 +21,7 @@ A per-transition animation configuration studio for Samsung One UI, inspired by 
 
 ## Important: animation engine status
 
-**0.7.0 is an experimental preview, not a complete system animation engine.** Hooks can now affect app-unlock duration, notification-row appearance, notification-shade open/close and Quick Settings expand/collapse scale, vertical offset, curve, spring response and direction anchor. They are guarded by runtime class/callsite/resource checks, but have not yet been tested on a retail One UI 8.5 device. The remaining 12 transitions are editor/preview-only. See [hook status](docs/HOOK-STATUS.md) for exact boundaries and verification requirements.
+**0.9.0 is an experimental preview, not a complete system animation engine.** Hooks can now affect app-unlock duration, notification-row appearance, notification-shade open/close and Quick Settings expand/collapse scale, vertical offset, curve, spring response and direction anchor. They are guarded by runtime class/callsite/resource checks, but have not yet been tested on a retail One UI 8.5 device. The remaining 11 transitions are editor/preview-only. See [hook status](docs/HOOK-STATUS.md) for exact boundaries and verification requirements.
 
 The reference FluidMotion APK is analysed by a GitHub Actions workflow. Only a technical inventory of hook sites and setting identifiers is committed; decompiled source is not redistributed. See [the current inventory](docs/reference-analysis/FLUIDMOTION-HOOK-INVENTORY.md) and [hook status](docs/HOOK-STATUS.md).
 
