@@ -30,9 +30,11 @@ import java.util.concurrent.atomic.AtomicReference
  */
 class ColorUpEntry : IXposedHookLoadPackage {
     private data class AppUnlockConfig(val enabled: Boolean, val durationMs: Long)
+    private data class UnlockHomeConfig(val enabled: Boolean, val durationMs: Long)
     private data class PanelConfig(val enabled: Boolean, val scale: Float, val translateY: Int)
 
     private val appUnlockConfig = AtomicReference<AppUnlockConfig?>(null)
+    private val unlockHomeConfig = AtomicReference<UnlockHomeConfig?>(null)
     private val shadeOpenConfig = AtomicReference<PanelConfig?>(null)
     private val shadeCloseConfig = AtomicReference<PanelConfig?>(null)
     private val qsExpandConfig = AtomicReference<PanelConfig?>(null)
@@ -40,11 +42,13 @@ class ColorUpEntry : IXposedHookLoadPackage {
     private val panelProgress = AtomicReference(0f)
     private val panelExpanding = AtomicBoolean(true)
     private val appUnlockHookInstalled = AtomicBoolean(false)
+    private val unlockHomeHookInstalled = AtomicBoolean(false)
     private val panelHooksInstalled = AtomicBoolean(false)
     private var configObserver: ContentObserver? = null
 
     private val configUri = Uri.parse("content://dev.colorup.config/config")
     private val appUnlockClass = "com.android.systemui.keyguard.KeyguardSecLegacyUnlockAnimationControllerImpl"
+    private val cellLayoutClass = "com.honeyspace.ui.common.CellLayout"
     private val splitHelperClass = "com.android.systemui.shade.SecPanelSplitHelper"
     private val depthControllerClass = "com.android.systemui.statusbar.NotificationShadeDepthController"
     private val composeViewClass = "androidx.compose.ui.platform.AndroidComposeView"
@@ -65,6 +69,8 @@ class ColorUpEntry : IXposedHookLoadPackage {
                             installConfigObserver(context, pkg)
                             installAppUnlockDurationHook(lpparam)
                             installPanelExpansionHooks(lpparam)
+                        } else {
+                            installUnlockHomeDurationHook(lpparam)
                         }
                     }
                 }
@@ -92,12 +98,16 @@ class ColorUpEntry : IXposedHookLoadPackage {
         appUnlockConfig.set(findAnimation(root, "unlock_to_app")?.let {
             AppUnlockConfig(it.optBoolean("enabled", false), it.optInt("durationMs", 320).coerceIn(0, 2000).toLong())
         })
+        unlockHomeConfig.set(findAnimation(root, "unlock_to_home")?.let {
+            UnlockHomeConfig(it.optBoolean("enabled", false), it.optInt("durationMs", 320).coerceIn(0, 2000).toLong())
+        })
         shadeOpenConfig.set(panelConfig(root, "shade_open"))
         shadeCloseConfig.set(panelConfig(root, "shade_close"))
         qsExpandConfig.set(panelConfig(root, "qs_expand"))
         qsCollapseConfig.set(panelConfig(root, "qs_collapse"))
         XposedBridge.log(
-            "ColorUp: config refreshed; appUnlock=" + (appUnlockConfig.get()?.enabled == true) +
+            "ColorUp: config refreshed; unlockHome=" + (unlockHomeConfig.get()?.enabled == true) +
+                ", appUnlock=" + (appUnlockConfig.get()?.enabled == true) +
                 ", shade=" + (shadeOpenConfig.get()?.enabled == true || shadeCloseConfig.get()?.enabled == true) +
                 ", quickSettings=" + (qsExpandConfig.get()?.enabled == true || qsCollapseConfig.get()?.enabled == true)
         )
@@ -123,6 +133,43 @@ class ColorUpEntry : IXposedHookLoadPackage {
             context.contentResolver.registerContentObserver(configUri, false, observer)
         } catch (error: Throwable) {
             XposedBridge.log("ColorUp: live config observer unavailable: " + error)
+        }
+    }
+
+    private fun installUnlockHomeDurationHook(lpparam: XC_LoadPackage.LoadPackageParam) {
+        if (!unlockHomeHookInstalled.compareAndSet(false, true)) return
+        val target = XposedHelpers.findClassIfExists(cellLayoutClass, lpparam.classLoader)
+        if (target == null) {
+            unlockHomeHookInstalled.set(false)
+            XposedBridge.log("ColorUp: unlock-to-home duration unsupported; CellLayout class missing")
+            return
+        }
+        try {
+            val candidates = target.declaredMethods.filter { method ->
+                val types = method.parameterTypes
+                types.size == 3 && types[0] == View::class.java &&
+                    types[1] == java.lang.Long.TYPE && types[2] == java.lang.Long.TYPE
+            }
+            if (candidates.isEmpty()) {
+                unlockHomeHookInstalled.set(false)
+                XposedBridge.log("ColorUp: unlock-to-home duration unsupported; matching CellLayout method missing")
+                return
+            }
+            candidates.forEach { method ->
+                XposedBridge.hookMethod(method, object : XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam) {
+                        val config = unlockHomeConfig.get() ?: return
+                        if (!config.enabled) return
+                        val view = param.args.getOrNull(0) as? View ?: return
+                        if (view.isAttachedToWindow) return
+                        param.args[2] = config.durationMs
+                    }
+                })
+            }
+            XposedBridge.log("ColorUp: unlock-to-home duration hook installed (" + candidates.size + " target method(s))")
+        } catch (error: Throwable) {
+            unlockHomeHookInstalled.set(false)
+            XposedBridge.log("ColorUp: unlock-to-home duration hook unavailable: " + error)
         }
     }
 
