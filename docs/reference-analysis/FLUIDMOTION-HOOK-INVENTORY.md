@@ -33,6 +33,23 @@ dev/flexy/fluidmotion/UnlockFlyIn.java:82:        for (Method m : cls.getDeclare
 dev/flexy/fluidmotion/UnlockFlyIn.java:85:                XposedBridge.hookMethod(m, SafeHook.before("unlock animation", new SafeHook.Body() { // from class: dev.flexy.fluidmotion.UnlockFlyIn$$ExternalSyntheticLambda0
 
 ## Method-selection predicates
+dev/flexy/fluidmotion/Refl.java:9:import java.lang.reflect.Modifier;
+dev/flexy/fluidmotion/Refl.java:38:        String key = cls.getName() + "#" + name;
+dev/flexy/fluidmotion/Refl.java:110:        String key = cls.getName() + "#" + name + "/" + paramCount;
+dev/flexy/fluidmotion/Refl.java:117:                if (cand.getName().equals(name) && cand.getParameterTypes().length == paramCount) {
+dev/flexy/fluidmotion/Refl.java:163:            if (m.getName().equals(name) && !Modifier.isAbstract(m.getModifiers())) {
+dev/flexy/fluidmotion/Refl.java:169:            XLog.i("nothing to hook: " + cls.getName() + "#" + name);
+dev/flexy/fluidmotion/Refl.java:216:            java.lang.String r0 = r7.getName()
+dev/flexy/fluidmotion/Refl.java:284:            java.lang.Class[] r0 = r7.getParameterTypes()
+dev/flexy/fluidmotion/Refl.java:299:            java.lang.Class r1 = r7.getReturnType()
+dev/flexy/fluidmotion/UnlockFlyIn.java:83:            Class<?>[] t = m.getParameterTypes();
+dev/flexy/fluidmotion/UnlockFlyIn.java:92:                XLog.i("unlock animation hooked: " + cls.getName() + "." + m.getName());
+dev/flexy/fluidmotion/UnlockFlyIn.java:97:            XLog.i("unlock animation method not found in " + cls.getName());
+dev/flexy/fluidmotion/UnlockFlyIn.java:264:        String name = v.getClass().getName();
+dev/flexy/fluidmotion/UnlockFlyIn.java:265:        if (name.endsWith(".QSBContainer") || name.endsWith(".PageIndicatorView")) {
+dev/flexy/fluidmotion/ShadeFlyIn.java:642:                if ((name instanceof String) && ELEMENTS.contains(name)) {
+dev/flexy/fluidmotion/ShadeFlyIn.java:645:                if ("TestTag".equals(name) && String.valueOf(((Map.Entry) e).getValue()).endsWith("tile_layout_background")) {
+dev/flexy/fluidmotion/ShadeFlyIn.java:1025:        return n.contains("Footer") || n.contains("Shelf") || n.contains("EmptyShade");
 
 ## Animation and preference identifiers
 "android.app.ActivityThread"
