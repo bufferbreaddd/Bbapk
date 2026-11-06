@@ -350,9 +350,9 @@ class ColorUpEntry : IXposedHookLoadPackage {
             "EASE_OUT" -> 1f - (1f - t) * (1f - t)
             "EASE_IN_OUT" -> t * t * (3f - 2f * t)
             "SPRING" -> {
-                val frequency = kotlin.math.sqrt(config.springStiffness / 420f) * 6f
-                val decay = kotlin.math.exp(-config.springDamping * 6f * t)
-                1f - decay * kotlin.math.cos(frequency * t)
+                val frequency = kotlin.math.sqrt((config.springStiffness / 420f).toDouble()) * 6.0
+                val decay = kotlin.math.exp(-config.springDamping.toDouble() * 6.0 * t.toDouble())
+                (1.0 - decay * kotlin.math.cos(frequency * t.toDouble())).toFloat()
             }
             else -> 1f - (1f - t) * (1f - t)
         }
