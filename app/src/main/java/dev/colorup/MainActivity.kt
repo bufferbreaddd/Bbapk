@@ -57,10 +57,6 @@ class MainActivity : Activity() {
         editorContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         content.addView(editorContainer)
         renderEditors()
-        content.addView(Button(this).apply {
-            text = "Save configuration"
-            setOnClickListener { saveConfig() }
-        })
         scroll.addView(content)
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         setContentView(root)
