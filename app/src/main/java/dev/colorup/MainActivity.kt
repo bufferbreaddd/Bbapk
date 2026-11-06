@@ -98,6 +98,7 @@ class MainActivity : Activity() {
                 "qs_expand" -> "Enable experimental Quick Settings expand transform"
                 "qs_collapse" -> "Enable experimental Quick Settings collapse transform"
                 "notification_appear" -> "Enable experimental notification appearance"
+                "notification_dismiss" -> "Enable experimental notification dismissal duration"
                 else -> "Not hooked yet · preview/config only"
             }
             setTextColor(0xFFFFFFFF.toInt())
