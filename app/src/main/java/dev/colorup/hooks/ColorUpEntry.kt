@@ -9,6 +9,8 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.view.View
+import android.view.ViewGroup
+import android.view.animation.DecelerateInterpolator
 import de.robv.android.xposed.IXposedHookLoadPackage
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
@@ -32,6 +34,7 @@ class ColorUpEntry : IXposedHookLoadPackage {
     private data class AppUnlockConfig(val enabled: Boolean, val durationMs: Long)
     private data class UnlockHomeConfig(val enabled: Boolean, val durationMs: Long)
     private data class PanelConfig(val enabled: Boolean, val scale: Float, val translateY: Int)
+    private data class NotificationConfig(val enabled: Boolean, val durationMs: Long, val offsetDp: Int)
 
     private val appUnlockConfig = AtomicReference<AppUnlockConfig?>(null)
     private val unlockHomeConfig = AtomicReference<UnlockHomeConfig?>(null)
@@ -39,11 +42,13 @@ class ColorUpEntry : IXposedHookLoadPackage {
     private val shadeCloseConfig = AtomicReference<PanelConfig?>(null)
     private val qsExpandConfig = AtomicReference<PanelConfig?>(null)
     private val qsCollapseConfig = AtomicReference<PanelConfig?>(null)
+    private val notificationAppearConfig = AtomicReference<NotificationConfig?>(null)
     private val panelProgress = AtomicReference(0f)
     private val panelExpanding = AtomicBoolean(true)
     private val appUnlockHookInstalled = AtomicBoolean(false)
     private val unlockHomeHookInstalled = AtomicBoolean(false)
     private val panelHooksInstalled = AtomicBoolean(false)
+    private val notificationHookInstalled = AtomicBoolean(false)
     private var configObserver: ContentObserver? = null
 
     private val configUri = Uri.parse("content://dev.colorup.config/config")
@@ -52,6 +57,8 @@ class ColorUpEntry : IXposedHookLoadPackage {
     private val splitHelperClass = "com.android.systemui.shade.SecPanelSplitHelper"
     private val depthControllerClass = "com.android.systemui.statusbar.NotificationShadeDepthController"
     private val composeViewClass = "androidx.compose.ui.platform.AndroidComposeView"
+    private val notificationStackClass = "com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout"
+    private val notificationRowClass = "com.android.systemui.statusbar.notification.row.ExpandableNotificationRow"
 
     override fun handleLoadPackage(lpparam: XC_LoadPackage.LoadPackageParam) {
         val pkg = lpparam.packageName
@@ -69,6 +76,7 @@ class ColorUpEntry : IXposedHookLoadPackage {
                         if (pkg == "com.android.systemui") {
                             installAppUnlockDurationHook(lpparam)
                             installPanelExpansionHooks(lpparam)
+                            installNotificationAppearHook(lpparam)
                         } else {
                             installUnlockHomeDurationHook(lpparam)
                         }
@@ -105,6 +113,13 @@ class ColorUpEntry : IXposedHookLoadPackage {
         shadeCloseConfig.set(panelConfig(root, "shade_close"))
         qsExpandConfig.set(panelConfig(root, "qs_expand"))
         qsCollapseConfig.set(panelConfig(root, "qs_collapse"))
+        notificationAppearConfig.set(findAnimation(root, "notification_appear")?.let {
+            NotificationConfig(
+                enabled = it.optBoolean("enabled", false),
+                durationMs = it.optInt("durationMs", 320).coerceIn(0, 2000).toLong(),
+                offsetDp = it.optInt("translateY", 24).coerceIn(-150, 150)
+            )
+        })
         XposedBridge.log(
             "ColorUp: config refreshed; unlockHome=" + (unlockHomeConfig.get()?.enabled == true) +
                 ", appUnlock=" + (appUnlockConfig.get()?.enabled == true) +
@@ -197,6 +212,52 @@ class ColorUpEntry : IXposedHookLoadPackage {
         } catch (error: Throwable) {
             appUnlockHookInstalled.set(false)
             XposedBridge.log("ColorUp: app-unlock duration hook unavailable: " + error)
+        }
+    }
+
+    private fun installNotificationAppearHook(lpparam: XC_LoadPackage.LoadPackageParam) {
+        if (!notificationHookInstalled.compareAndSet(false, true)) return
+        val stackClass = XposedHelpers.findClassIfExists(notificationStackClass, lpparam.classLoader)
+        val rowClass = XposedHelpers.findClassIfExists(notificationRowClass, lpparam.classLoader)
+        if (stackClass == null || rowClass == null) {
+            notificationHookInstalled.set(false)
+            XposedBridge.log("ColorUp: notification appear unsupported; SystemUI row/stack class missing")
+            return
+        }
+        try {
+            XposedHelpers.findAndHookMethod(
+                ViewGroup::class.java,
+                "addView",
+                View::class.java,
+                java.lang.Integer.TYPE,
+                object : XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam) {
+                        if (param.thisObject.javaClass.name != notificationStackClass) return
+                        val row = param.args.getOrNull(0) as? View ?: return
+                        if (row.javaClass.name != notificationRowClass) return
+                        val config = notificationAppearConfig.get() ?: return
+                        if (!config.enabled) return
+                        val offsetPx = config.offsetDp * row.resources.displayMetrics.density
+                        row.animate().cancel()
+                        row.alpha = 0f
+                        row.translationY = offsetPx
+                        param.setObjectExtra(NOTIFICATION_CONFIG_KEY, config)
+                    }
+
+                    override fun afterHookedMethod(param: MethodHookParam) {
+                        val config = param.getObjectExtra(NOTIFICATION_CONFIG_KEY) as? NotificationConfig ?: return
+                        val row = param.args.getOrNull(0) as? View ?: return
+                        row.animate().alpha(1f).translationY(0f)
+                            .setDuration(config.durationMs)
+                            .setInterpolator(DecelerateInterpolator())
+                            .start()
+                    }
+                }
+            )
+            XposedBridge.log("ColorUp: notification appear hook installed")
+        } catch (error: Throwable) {
+            notificationHookInstalled.set(false)
+            XposedBridge.log("ColorUp: notification appear hook unavailable: " + error)
         }
     }
 
@@ -298,5 +359,6 @@ class ColorUpEntry : IXposedHookLoadPackage {
 
     companion object {
         private const val CANVAS_SAVE_KEY = "colorup.canvas.save"
+        private const val NOTIFICATION_CONFIG_KEY = "colorup.notification.config"
     }
 }
