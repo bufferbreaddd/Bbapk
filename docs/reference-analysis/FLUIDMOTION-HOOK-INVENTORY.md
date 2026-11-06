@@ -76,6 +76,15 @@ dev/flexy/fluidmotion/ShadeFlyIn.java:645:                if ("TestTag".equals(n
 dev/flexy/fluidmotion/ShadeFlyIn.java:1025:        return n.contains("Footer") || n.contains("Shelf") || n.contains("EmptyShade");
 
 ## Unlock method signature filters
+21:    private static boolean hooked;
+79:        if (hooked) {
+82:        for (Method m : cls.getDeclaredMethods()) {
+83:            Class<?>[] t = m.getParameterTypes();
+84:            if (t.length == 3 && t[0] == View.class && t[1] == Long.TYPE && t[2] == Long.TYPE) {
+85:                XposedBridge.hookMethod(m, SafeHook.before("unlock animation", new SafeHook.Body() { // from class: dev.flexy.fluidmotion.UnlockFlyIn$$ExternalSyntheticLambda0
+91:                hooked = true;
+92:                XLog.i("unlock animation hooked: " + cls.getName() + "." + m.getName());
+96:        if (!hooked) {
 
 ## Shade hook registration references
 28:    private static final String COMPOSE = "androidx.compose.ui.platform.AndroidComposeView";
