@@ -78,7 +78,14 @@ jobs:
             echo "No inventory changes."
           else
             git commit -m "Add generated FluidMotion hook inventory"
-            git fetch origin main
-            git rebase origin/main
-            git push
+            for attempt in 1 2 3 4 5; do
+              git fetch origin main
+              git rebase origin/main
+              if git push; then
+                exit 0
+              fi
+              echo "Push raced with another main update; retrying ($attempt/5)"
+              sleep 2
+            done
+            exit 1
           fi
