@@ -3,7 +3,7 @@
 A per-transition animation configuration studio for Samsung One UI, inspired by fluid ColorOS-style motion.
 
 **Compatibility target:** One UI 8.5, device-model agnostic by design. Actual support is determined by the installed hook runtime and the tested One UI build.  
-**App:** ColorUp · **Current preview:** 0.7.0
+**App:** ColorUp · **Current preview:** 0.8.0
 
 ## What works in this preview
 
