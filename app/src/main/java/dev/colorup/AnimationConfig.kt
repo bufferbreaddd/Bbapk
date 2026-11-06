@@ -20,6 +20,8 @@ data class AnimationSpec(
 )
 
 object AnimationCatalog {
+    val experimentalHookIds = setOf("unlock_to_app", "shade_open", "shade_close", "qs_expand", "qs_collapse")
+
     val defaults = listOf(
         AnimationSpec("unlock_to_home","Unlock → home","Lock screen"),
         AnimationSpec("unlock_to_app","Unlock → app","Lock screen"),
@@ -45,7 +47,7 @@ object AnimationCatalog {
         val result = defaults.map { it.copy() }.toMutableList()
         result.forEach { s ->
             when (name) {
-                "Fluid" -> { s.enabled = s.id in setOf("unlock_to_app", "shade_open", "shade_close", "qs_expand", "qs_collapse"); s.durationMs = 430; s.curve = "SPRING"; s.scale = 1.04f; s.springDamping = 0.78f; s.springStiffness = 360f; s.translateY = 30 }
+                "Fluid" -> { s.enabled = s.id in experimentalHookIds; s.durationMs = 430; s.curve = "SPRING"; s.scale = 1.04f; s.springDamping = 0.78f; s.springStiffness = 360f; s.translateY = 30 }
                 "Crisp" -> { s.enabled = s.id == "unlock_to_app"; s.durationMs = 220; s.curve = "EASE_OUT"; s.scale = 1f; s.fade = 1f; s.translateY = 12 }
                 "Gentle" -> { s.enabled = s.id == "unlock_to_app"; s.durationMs = 520; s.curve = "EASE_IN_OUT"; s.scale = 1.01f; s.fade = 0.96f; s.translateY = 16 }
                 else -> Unit
@@ -63,7 +65,7 @@ object ConfigCodec {
         root.put("animations", JSONArray().apply {
             specs.forEach { s ->
                 put(JSONObject()
-                    .put("id", s.id).put("enabled", s.enabled)
+                    .put("id", s.id).put("enabled", s.enabled && s.id in AnimationCatalog.experimentalHookIds)
                     .put("durationMs", s.durationMs.coerceIn(0, 2000))
                     .put("curve", s.curve).put("scale", s.scale.coerceIn(0f, 2f).toDouble())
                     .put("fade", s.fade.coerceIn(0f, 1f).toDouble())
@@ -89,7 +91,7 @@ object ConfigCodec {
             val curve = item.optString("curve", base.curve).takeIf { it in CURVES } ?: base.curve
             val direction = item.optString("direction", base.direction).takeIf { it in DIRECTIONS } ?: base.direction
             imported[id] = base.copy(
-                enabled = item.optBoolean("enabled", false),
+                enabled = item.optBoolean("enabled", false) && id in AnimationCatalog.experimentalHookIds,
                 durationMs = item.optInt("durationMs", 320).coerceIn(0, 2000),
                 curve = curve,
                 scale = item.optDouble("scale", 1.0).toFloat().coerceIn(0f, 2f),
