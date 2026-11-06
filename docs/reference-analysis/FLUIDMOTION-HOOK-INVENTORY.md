@@ -87,16 +87,61 @@ dev/flexy/fluidmotion/ShadeFlyIn.java:1025:        return n.contains("Footer") |
 96:        if (!hooked) {
 
 ## Unlock callback argument usage
+6:import android.view.View;
+7:import android.view.ViewGroup;
+23:    private long lastNs;
+25:    private long startNs;
+26:    private float stiffness = 320.0f;
+27:    private float damping = ((float) Math.sqrt(320.0d)) * 1.3f;
+28:    private float startScale = 1.8f;
+29:    private float anchorY = 0.1f;
+30:    private long staggerNs = 30000000;
+31:    private long maxDelayNs = 280000000;
+32:    private float fade = 1.5f;
+41:        float ax;
+42:        float ay;
+43:        long delayNs;
+44:        float v;
+45:        View view;
+46:        float x;
 58:                UnlockFlyIn.hookController(methodHookParam.thisObject.getClass());
 71:        if (p.args.length <= 0 || !(p.args[0] instanceof View) || ((View) p.args[0]).isAttachedToWindow()) {
+74:        p.setResult((Object) null);
+84:            if (t.length == 3 && t[0] == View.class && t[1] == Long.TYPE && t[2] == Long.TYPE) {
 105:            View root = (View) p.args[0];
 106:            p.args[0] = new View(root.getContext());
 107:            INSTANCE.start(root, ((Long) p.args[2]).longValue());
-134:        root.setAlpha(1.0f);
-135:        root.setScaleX(1.0f);
-136:        root.setScaleY(1.0f);
-139:            XLog.i("unlock: nothing to animate");
-210:        this.matrix.setScale(s, s, it.ax, it.ay);
+118:            float zeta = Settings.dampingRatio(setting("unlock_bounce", 50));
+120:            this.damping = 2.0f * zeta * ((float) Math.sqrt(this.stiffness));
+121:            this.startScale = setting("unlock_scale", 180) / 100.0f;
+132:    private void start(View root, long delayMs) {
+148:        float f = 2.0f;
+149:        float ax = rloc[0] + (w / 2.0f);
+150:        float ay = rloc[1] + (h * this.anchorY);
+155:            float cy = loc[1] + (it.view.getHeight() / f);
+156:            float rows = Math.max(0.0f, (cy - ay) / (h * 0.1f));
+157:            it.delayNs = Math.min(this.maxDelayNs, (long) (this.staggerNs * rows));
+174:    public void doFrame(long frameTimeNanos) {
+177:                long now = System.nanoTime();
+178:                float dt = Math.min(0.033333335f, Math.max(0.0f, (now - this.lastNs) / 1.0E9f));
+183:                        float a = (this.stiffness * (1.0f - it.x)) - (this.damping * it.v);
+187:                    float a2 = it.x;
+206:        View v = it.view;
+207:        float p = it.x;
+208:        float inv = 1.0f - p;
+209:        float s = ((this.startScale - 1.0f) * inv) + 1.0f;
+224:    private void collect(View root) {
+226:        List<ViewGroup> cells = new ArrayList<>();
+227:        List<View> extras = new ArrayList<>();
+230:        Iterator<View> it = extras.iterator();
+235:            View e = it.next();
+242:        for (ViewGroup cell : cells) {
+245:                    View c = cell.getChildAt(i);
+256:    private void findCells(View v, List<ViewGroup> out, List<View> extras) {
+261:            out.add((ViewGroup) v);
+265:        if (name.endsWith(".QSBContainer") || name.endsWith(".PageIndicatorView")) {
+269:        if (v instanceof ViewGroup) {
+270:            ViewGroup g = (ViewGroup) v;
 
 ## Shade hook registration references
 28:    private static final String COMPOSE = "androidx.compose.ui.platform.AndroidComposeView";
