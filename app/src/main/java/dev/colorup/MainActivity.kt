@@ -23,6 +23,8 @@ class MainActivity : Activity() {
         val saved = prefs.getString("config_json", null)
         if (saved != null) runCatching { specs = ConfigCodec.decode(saved) }
         buildUi()
+        val runtimePackage = prefs.getString("last_runtime_seen_pkg", null)
+        status.text = if (runtimePackage == null) "No hook runtime heartbeat yet · preview and config editor are ready" else "Hook runtime last connected in " + runtimePackage
     }
 
     private fun buildUi() {
@@ -37,6 +39,7 @@ class MainActivity : Activity() {
         content.addView(label("One UI 8.5 · animation studio", 14))
         status = label("18 transition profiles · settings are independent", 13)
         content.addView(status)
+        content.addView(label("Only app-unlock duration currently has a reference-derived system hook. Other controls are saved and previewable but do not change One UI yet.", 13))
         content.addView(label("PRESETS", 12, true))
         val presetRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         listOf("Stock", "Fluid", "Crisp", "Gentle").forEach { name ->
@@ -79,9 +82,10 @@ class MainActivity : Activity() {
         }
         panel.addView(label(spec.title, 17, true))
         panel.addView(CheckBox(this).apply {
-            text = "Enable this transition"
+            text = if (spec.id == "unlock_to_app") "Enable experimental app-unlock duration hook" else "Not hooked yet · preview/config only"
             setTextColor(0xFFFFFFFF.toInt())
             isChecked = spec.enabled
+            isEnabled = spec.id == "unlock_to_app"
             setOnCheckedChangeListener { _, value -> spec.enabled = value }
         })
         panel.addView(seekControl("Duration", 2000, spec.durationMs, { v -> v.toString() + " ms" }) { spec.durationMs = it })
