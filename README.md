@@ -1,62 +1,45 @@
 # ColorUp
 
-A root-powered animation customization project for Samsung One UI, inspired by ColorOS-style system motion.
+A root-powered, per-transition animation customization project for Samsung One UI, inspired by ColorOS-style system motion.
 
-**Project codename:** ColorUp  
-**Target device for initial development:** Samsung Galaxy A35 5G (SM-A356B), Android 16 / One UI 8  
-**Repository:** this project lives in the existing `Bbapk` repository; the Android app itself will be named ColorUp.
+**Compatibility target:** One UI 8.5. Device model is not restricted; support is determined by Android/One UI build and available hook runtime.  
+**App:** ColorUp · **Current source milestone:** 0.1.0
 
 ## Goal
 
-Build a user-facing animation studio with granular, independently configurable controls and reversible profiles. The aim is not to change Android's global animation scales, but to customize the actual transitions and motion used by SystemUI and app/task transitions wherever the platform exposes a reliable hook.
+Build a user-facing animation studio with granular, independently configurable controls. This is not a global animation-scale tweak: each transition has its own settings record.
 
-## Scope
+## Initial transition catalogue
 
-The intended control surface includes:
+- Lock screen: unlock to home/app, show/hide keyguard
+- Power: screen on/off
+- Apps & tasks: app launch/close, return home, open/close recents
+- SystemUI: open/close notification shade, expand/collapse Quick Settings
+- Notifications: appear, dismiss, expand
 
-- Lock and unlock transitions
-- Unlock-to-home and unlock-into-app transitions
-- App launch and app close
-- Home/launcher return and task switching / recents
-- Quick Settings panel open, close, expand and collapse
-- Notification shade open, close and row/item motion
-- Notifications appearing, dismissing and expanding
-- Screen on/off and keyguard transitions
-- Per-animation duration, interpolator/curve, spring response, scale, translation, fade, stagger, direction/anchor and delay where technically supported
-- Per-feature enable switches, live preview, presets, profiles, import/export, reset and safe mode
+Each transition has separate enable, duration, curve, scale, fade and vertical-offset values. The current UI exposes those controls independently.
 
-Not every transition is controlled by the same Android component. Some are owned by SystemUI, some by Launcher, and others by framework/window-manager code. Each hook must be identified and tested independently; unsupported controls must be shown as unavailable rather than pretending to work.
+## Source layout
 
-## Architecture direction
+- `app/`: Kotlin Android app and settings editor
+- `app/src/main/java/dev/colorup/hooks/`: Xposed-compatible runtime entry point
+- `docs/ARCHITECTURE.md`: process ownership and hook implementation policy
+- `FluidMotion.apk`: user-supplied technical reference, not ColorUp code
 
-- Kotlin Android application for the configuration UI.
-- A privileged hook layer for SystemUI / framework / Launcher integration.
-- A versioned settings contract shared between the UI and hook layer.
-- Explicit capability detection by Android version, One UI version and target package.
-- Atomic settings writes, backup/restore, and a safe-mode / disable-all path.
-- No direct modification of system APKs or boot images as the default installation path.
+## Build
 
-The initial compatibility target is the user's rooted Galaxy A35 (SM-A356B, Android 16 / One UI 8, KernelSU with Zygisk Next). Compatibility must be verified on-device; root alone does not guarantee that a particular hook framework or SystemUI method is available.
+Open the repository in Android Studio with JDK 17 and Android SDK 36. Build the `app` module. The app is configured as an Xposed/LSPosed module and also exposes a normal launcher activity.
 
-## Reference APK
+## Current status: 0.1.0 scaffold
 
-The supplied `FluidMotion.apk` is a technical reference only, not the ColorUp codebase. Its DEX contains an Xposed entry point and hook classes for unlock fly-in, shade fly-in and app-unlock zoom. Extracted setting names include:
+The app has an independent settings editor and writes a versioned JSON snapshot to `/data/adb/colorup/config.json` using root. The runtime entry point currently performs package/config detection only. **No animation transition hooks are active yet.** This is deliberate: each One UI 8.5 method must be identified and verified before a setting is allowed to affect SystemUI or Launcher.
 
-- Unlock: enabled, duration, scale, fade, stagger, bounce, anchor
-- App unlock: zoom scale and duration
-- Shade: scale, Quick Settings, notifications and drop controls
+Root alone does not provide Xposed method hooks. A compatible hook runtime is a separate requirement. The initial scope file targets SystemUI and Samsung Launcher.
 
-Its embedded strings indicate that some spring/row-delay/fade settings are shared between unlock and shade animations, and that changes apply on the next unlock or shade pull. This is a useful starting point, but it does **not** provide the full system-wide per-transition control requested for ColorUp.
+## Development rules
 
-## Development principles
-
-1. Never claim a control works until its hook is implemented and verified on a real device.
-2. Keep every animation parameter independent unless the underlying platform forces a shared parameter; clearly label shared controls.
-3. Preserve stock behavior when a feature is disabled.
-4. Make changes reversible and provide a safe recovery path.
-5. Keep device-specific code isolated behind capability checks.
-6. Document tested One UI / Android builds and known limitations.
-
-## Status
-
-Planning and reference inspection. No ColorUp APK has been built yet.
+1. Never label a transition supported until its hook is implemented and tested on-device.
+2. Keep settings independent unless the platform forces a shared parameter.
+3. Disabled means stock behavior.
+4. Keep a kill switch and a recovery route.
+5. Record exact One UI/Android builds tested and known limitations.
