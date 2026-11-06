@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.10.0
+- Added guarded keyguard show/hide duration routing through keyguard mediator call stacks.
+
 ## 0.9.0
 - Added a guarded notification dismissal duration hook using the row's remove-animation API.
 
