@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.0-rc1
+- First functional release candidate with 11 guarded experimental transition hooks.
+- Added screen-on/off and keyguard show/hide duration routing.
+- Added install, recovery and One UI 8.5 device test documentation.
+- Seven catalogued transitions remain preview/configuration-only pending verified hooks.
+
 ## 0.11.0
 - Added guarded screen-on and screen-off duration routing through keyguard mediator call stacks.
 
