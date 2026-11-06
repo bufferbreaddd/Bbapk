@@ -20,7 +20,8 @@ class AnimationConfigTest {
     @Test
     fun presetChangesAreIndependentCopies() {
         val fluid = AnimationCatalog.preset("Fluid")
-        assertTrue(fluid.all { it.enabled })
+        assertTrue(fluid.first { it.id == "unlock_to_app" }.enabled)
+        assertTrue(fluid.filter { it.id != "unlock_to_app" }.none { it.enabled })
         fluid.first().durationMs = 999
         assertFalse(AnimationCatalog.defaults.first().durationMs == 999)
     }
@@ -35,7 +36,7 @@ class AnimationConfigTest {
         assertEquals(180, decoded.first().delayMs)
         assertEquals("LEFT", decoded.first().direction)
         assertEquals(720f, decoded.first().springStiffness)
-        assertTrue(decoded.first().enabled)
+        assertTrue(decoded.first { it.id == "unlock_to_app" }.enabled)
     }
 
     @Test
