@@ -21,7 +21,8 @@ class AnimationConfigTest {
     fun presetChangesAreIndependentCopies() {
         val fluid = AnimationCatalog.preset("Fluid")
         assertTrue(fluid.first { it.id == "unlock_to_app" }.enabled)
-        assertTrue(fluid.filter { it.id != "unlock_to_app" }.none { it.enabled })
+        assertTrue(fluid.first { it.id == "qs_expand" }.enabled)
+        assertTrue(fluid.filter { it.id != "unlock_to_app" && it.id != "qs_expand" }.none { it.enabled })
         fluid.first().durationMs = 999
         assertFalse(AnimationCatalog.defaults.first().durationMs == 999)
     }
