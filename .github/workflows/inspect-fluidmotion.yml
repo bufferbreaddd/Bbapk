@@ -53,7 +53,7 @@ jobs:
             grep -RInE 'getName|getParameterCount|getParameterTypes|getReturnType|isSynthetic|isBridge|Modifier|startsWith|endsWith|contains' /tmp/fluid-src/sources/dev/flexy/fluidmotion/Refl.java /tmp/fluid-src/sources/dev/flexy/fluidmotion/UnlockFlyIn.java /tmp/fluid-src/sources/dev/flexy/fluidmotion/ShadeFlyIn.java 2>/dev/null | sed -E 's#^/tmp/fluid-src/sources/##' | head -n 220 || true
             echo
             echo "## Unlock method signature filters"
-            grep -nE 'getDeclaredMethods|getParameterTypes|t\\.length|t\\[[0-9]+\\]|== .*class|\\.equals\\(|hookMethod|hooked|Modifier' /tmp/fluid-src/sources/dev/flexy/fluidmotion/UnlockFlyIn.java 2>/dev/null | head -n 140 || true
+            grep -nE 'getDeclaredMethods|getParameterTypes|t.length|t\\[0\\]|t\\[1\\]|t\\[2\\]|hookMethod|hooked' /tmp/fluid-src/sources/dev/flexy/fluidmotion/UnlockFlyIn.java 2>/dev/null | head -n 140 || true
             echo
             echo "## Shade hook registration references"
             grep -nE 'Refl\\.|hook|findAndHook|AndroidComposeView|InteractionJank' /tmp/fluid-src/sources/dev/flexy/fluidmotion/ShadeFlyIn.java 2>/dev/null | head -n 160 || true
