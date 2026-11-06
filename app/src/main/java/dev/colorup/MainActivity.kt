@@ -93,6 +93,7 @@ class MainActivity : Activity() {
         panel.addView(CheckBox(this).apply {
             text = when (spec.id) {
                 "unlock_to_app" -> "Enable experimental app-unlock duration hook"
+                "unlock_to_home" -> "Enable experimental unlock-to-home duration hook"
                 "shade_open" -> "Enable experimental shade opening transform"
                 "shade_close" -> "Enable experimental shade closing transform"
                 "qs_expand" -> "Enable experimental Quick Settings expand transform"
@@ -101,7 +102,7 @@ class MainActivity : Activity() {
             }
             setTextColor(0xFFFFFFFF.toInt())
             isChecked = spec.enabled
-            isEnabled = spec.id in setOf("unlock_to_app", "shade_open", "shade_close", "qs_expand", "qs_collapse")
+            isEnabled = spec.id in AnimationCatalog.experimentalHookIds
             setOnCheckedChangeListener { _, value -> spec.enabled = value }
         })
         panel.addView(seekControl("Duration", 2000, spec.durationMs, { v -> v.toString() + " ms" }) { spec.durationMs = it })
