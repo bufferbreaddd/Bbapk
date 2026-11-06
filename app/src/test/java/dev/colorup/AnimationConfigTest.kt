@@ -21,6 +21,8 @@ class AnimationConfigTest {
     fun presetChangesAreIndependentCopies() {
         val fluid = AnimationCatalog.preset("Fluid")
         assertTrue(fluid.first { it.id == "unlock_to_app" }.enabled)
+        assertTrue(fluid.first { it.id == "keyguard_show" }.enabled)
+        assertTrue(fluid.first { it.id == "keyguard_hide" }.enabled)
         assertTrue(fluid.first { it.id == "shade_open" }.enabled)
         assertTrue(fluid.first { it.id == "shade_close" }.enabled)
         assertTrue(fluid.first { it.id == "qs_expand" }.enabled)
