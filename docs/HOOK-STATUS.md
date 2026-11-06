@@ -2,16 +2,6 @@
 
 Last reviewed against the repository's FluidMotion reference APK and the current ColorUp source. This is a source-level status report, not proof of behavior on a retail One UI 8.5 build.
 
-## Experimental candidate: unlock to home duration
-
-- Config ID: `unlock_to_home`
-- Process: `com.sec.android.app.launcher`
-- Reference-derived class: `com.honeyspace.ui.common.CellLayout`
-- Method signature guard: exactly three parameters `(View, long, long)`.
-- Changes only the third long argument, and only when the first View is not yet attached to its window.
-- Duration range: 0–2000 ms.
-- Launcher observes configuration updates, so Save refreshes the value without restarting the process.
-
 ## Experimental candidate: app-unlock duration
 
 - Config ID: `unlock_to_app`
@@ -47,7 +37,7 @@ This hook is a narrow ColorUp implementation and is not copied from FluidMotion.
 
 ## Preview/configuration-only transitions
 
-The remaining 10 IDs have independent configuration and in-app preview controls, but no system hook is installed for them yet. Their enable switches are unavailable in the UI.
+The remaining 12 IDs have independent configuration and in-app preview controls, but no system hook is installed for them yet. Their enable switches are unavailable in the UI.
 
 ## Configuration bridge
 
@@ -59,10 +49,10 @@ The remaining 10 IDs have independent configuration and in-app preview controls,
 ## Verification still required
 
 1. Build the APK in GitHub Actions.
-2. Enable ColorUp in a compatible legacy Xposed runtime and scope SystemUI and Samsung Launcher.
+2. Enable ColorUp in a compatible legacy Xposed runtime and scope SystemUI and Samsung Launcher. Launcher is currently only a future target; the unlock-to-home transition remains preview-only.
 3. Confirm the runtime heartbeat appears in ColorUp.
 4. Enable one experimental transition at a time and save.
-5. Test unlock-to-home, app-unlock, shade open/close, Quick Settings expand/collapse and notification appearance separately.
+5. Test app-unlock, shade open/close, Quick Settings expand/collapse and notification appearance separately.
 6. Confirm unrelated animations remain unchanged.
 7. Disable each setting and save; verify stock behavior returns.
 8. Test on the exact One UI build and record the build fingerprint.
