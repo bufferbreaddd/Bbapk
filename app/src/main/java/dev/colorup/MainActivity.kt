@@ -84,22 +84,15 @@ class MainActivity : Activity() {
             isChecked = spec.enabled
             setOnCheckedChangeListener { _, value -> spec.enabled = value }
         })
-        panel.addView(label("Duration: ${spec.durationMs} ms", 13))
-        panel.addView(seek(2000, spec.durationMs) { spec.durationMs = it })
+        panel.addView(seekControl("Duration", 2000, spec.durationMs, { v -> v.toString() + " ms" }) { spec.durationMs = it })
         panel.addView(label("Motion curve", 13))
         panel.addView(spinner(ConfigCodec.CURVES.toTypedArray(), spec.curve) { spec.curve = it })
-        panel.addView(label("Scale: ${"%.2f".format(spec.scale)}×", 13))
-        panel.addView(seek(200, (spec.scale * 100).toInt()) { spec.scale = it / 100f })
-        panel.addView(label("Fade: ${"%.2f".format(spec.fade)}", 13))
-        panel.addView(seek(100, (spec.fade * 100).toInt()) { spec.fade = it / 100f })
-        panel.addView(label("Vertical offset: ${spec.translateY} dp", 13))
-        panel.addView(seek(300, spec.translateY + 150) { spec.translateY = it - 150 })
-        panel.addView(label("Start delay: ${spec.delayMs} ms", 13))
-        panel.addView(seek(1000, spec.delayMs) { spec.delayMs = it })
-        panel.addView(label("Spring damping: ${"%.2f".format(spec.springDamping)}", 13))
-        panel.addView(seek(200, (spec.springDamping * 100).toInt()) { spec.springDamping = (it / 100f).coerceAtLeast(0.1f) })
-        panel.addView(label("Spring stiffness: ${spec.springStiffness.toInt()}", 13))
-        panel.addView(seek(1500, spec.springStiffness.toInt()) { spec.springStiffness = it.coerceAtLeast(50).toFloat() })
+        panel.addView(seekControl("Scale", 200, (spec.scale * 100).toInt(), { v -> "%.2f".format(v / 100f) + "×" }) { spec.scale = it / 100f })
+        panel.addView(seekControl("Fade", 100, (spec.fade * 100).toInt(), { v -> "%.2f".format(v / 100f) }) { spec.fade = it / 100f })
+        panel.addView(seekControl("Vertical offset", 300, spec.translateY + 150, { v -> (v - 150).toString() + " dp" }) { spec.translateY = it - 150 })
+        panel.addView(seekControl("Start delay", 1000, spec.delayMs, { v -> v.toString() + " ms" }) { spec.delayMs = it })
+        panel.addView(seekControl("Spring damping", 200, (spec.springDamping * 100).toInt(), { v -> "%.2f".format(v / 100f) }) { spec.springDamping = (it / 100f).coerceAtLeast(0.1f) })
+        panel.addView(seekControl("Spring stiffness", 1500, spec.springStiffness.toInt(), { v -> v.toString() }) { spec.springStiffness = it.coerceAtLeast(50).toFloat() })
         panel.addView(label("Direction / anchor", 13))
         panel.addView(spinner(ConfigCodec.DIRECTIONS.toTypedArray(), spec.direction) { spec.direction = it })
         val preview = View(this).apply {
@@ -117,16 +110,24 @@ class MainActivity : Activity() {
         return panel.apply { layoutParams = LinearLayout.LayoutParams(-1, -2).also { it.bottomMargin = dp(12) } }
     }
 
-    private fun seek(maxValue: Int, initial: Int, changed: (Int) -> Unit): SeekBar =
-        SeekBar(this).apply {
+    private fun seekControl(title: String, maxValue: Int, initial: Int, format: (Int) -> String, changed: (Int) -> Unit): View {
+        val wrapper = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val valueLabel = label(title + ": " + format(initial), 13)
+        wrapper.addView(valueLabel)
+        wrapper.addView(SeekBar(this).apply {
             max = maxValue
             progress = initial.coerceIn(0, maxValue)
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(bar: SeekBar?, value: Int, fromUser: Boolean) { if (fromUser) changed(value) }
+                override fun onProgressChanged(bar: SeekBar?, value: Int, fromUser: Boolean) {
+                    valueLabel.text = title + ": " + format(value)
+                    if (fromUser) changed(value)
+                }
                 override fun onStartTrackingTouch(bar: SeekBar?) = Unit
                 override fun onStopTrackingTouch(bar: SeekBar?) = Unit
             })
-        }
+        })
+        return wrapper
+    }
 
     private fun spinner(items: Array<String>, selected: String, changed: (String) -> Unit) =
         Spinner(this).apply {
