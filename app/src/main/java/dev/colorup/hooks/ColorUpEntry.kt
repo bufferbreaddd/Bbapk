@@ -39,6 +39,7 @@ class ColorUpEntry : IXposedHookLoadPackage {
     private data class PanelConfig(val enabled: Boolean, val scale: Float, val translateY: Int, val curve: String, val springDamping: Float, val springStiffness: Float, val direction: String)
     private data class NotificationConfig(val enabled: Boolean, val durationMs: Long, val offsetDp: Int, val scale: Float, val fade: Float, val delayMs: Long, val curve: String, val damping: Float, val stiffness: Float, val direction: String)
     private data class NotificationState(val config: NotificationConfig, val alpha: Float, val scaleX: Float, val scaleY: Float, val translationY: Float)
+    private data class NotificationDismissConfig(val enabled: Boolean, val durationMs: Long)
 
     private val appUnlockConfig = AtomicReference<AppUnlockConfig?>(null)
     private val shadeOpenConfig = AtomicReference<PanelConfig?>(null)
@@ -46,11 +47,13 @@ class ColorUpEntry : IXposedHookLoadPackage {
     private val qsExpandConfig = AtomicReference<PanelConfig?>(null)
     private val qsCollapseConfig = AtomicReference<PanelConfig?>(null)
     private val notificationAppearConfig = AtomicReference<NotificationConfig?>(null)
+    private val notificationDismissConfig = AtomicReference<NotificationDismissConfig?>(null)
     private val panelProgress = AtomicReference(0f)
     private val panelExpanding = AtomicBoolean(true)
     private val appUnlockHookInstalled = AtomicBoolean(false)
     private val panelHooksInstalled = AtomicBoolean(false)
     private val notificationHookInstalled = AtomicBoolean(false)
+    private val notificationDismissHookInstalled = AtomicBoolean(false)
     private var configObserver: ContentObserver? = null
 
     private val configUri = Uri.parse("content://dev.colorup.config/config")
@@ -78,6 +81,7 @@ class ColorUpEntry : IXposedHookLoadPackage {
                             installAppUnlockDurationHook(lpparam)
                             installPanelExpansionHooks(lpparam)
                             installNotificationAppearHook(lpparam)
+                            installNotificationDismissDurationHook(lpparam)
                         }
                     }
                 }
@@ -121,6 +125,12 @@ class ColorUpEntry : IXposedHookLoadPackage {
                 damping = it.optDouble("springDamping", 0.82).toFloat().coerceIn(0.1f, 2f),
                 stiffness = it.optDouble("springStiffness", 420.0).toFloat().coerceIn(50f, 1500f),
                 direction = it.optString("direction", "UP")
+            )
+        })
+        notificationDismissConfig.set(findAnimation(root, "notification_dismiss")?.let {
+            NotificationDismissConfig(
+                enabled = it.optBoolean("enabled", false),
+                durationMs = it.optInt("durationMs", 320).coerceIn(0, 2000).toLong()
             )
         })
         XposedBridge.log(
@@ -250,6 +260,44 @@ class ColorUpEntry : IXposedHookLoadPackage {
         } catch (error: Throwable) {
             notificationHookInstalled.set(false)
             XposedBridge.log("ColorUp: notification appear hook unavailable: " + error)
+        }
+    }
+
+    private fun installNotificationDismissDurationHook(lpparam: XC_LoadPackage.LoadPackageParam) {
+        if (!notificationDismissHookInstalled.compareAndSet(false, true)) return
+        val rowClass = XposedHelpers.findClassIfExists(notificationRowClass, lpparam.classLoader)
+        if (rowClass == null) {
+            notificationDismissHookInstalled.set(false)
+            XposedBridge.log("ColorUp: notification dismiss unsupported; row class missing")
+            return
+        }
+        try {
+            val candidates = rowClass.declaredMethods.filter { method ->
+                val types = method.parameterTypes
+                method.name == "performRemoveAnimation" &&
+                    method.returnType == java.lang.Long.TYPE &&
+                    types.size >= 6 &&
+                    types[0] == java.lang.Long.TYPE &&
+                    types[1] == java.lang.Long.TYPE &&
+                    types[2] == java.lang.Float.TYPE
+            }
+            if (candidates.isEmpty()) {
+                notificationDismissHookInstalled.set(false)
+                XposedBridge.log("ColorUp: notification dismiss unsupported; remove-animation method missing")
+                return
+            }
+            candidates.forEach { method ->
+                XposedBridge.hookMethod(method, object : XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam) {
+                        val config = notificationDismissConfig.get() ?: return
+                        if (config.enabled) param.args[0] = config.durationMs
+                    }
+                })
+            }
+            XposedBridge.log("ColorUp: notification dismiss duration hook installed (" + candidates.size + " method(s))")
+        } catch (error: Throwable) {
+            notificationDismissHookInstalled.set(false)
+            XposedBridge.log("ColorUp: notification dismiss hook unavailable: " + error)
         }
     }
 
