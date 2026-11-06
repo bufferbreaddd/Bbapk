@@ -7,6 +7,11 @@ dev/flexy/fluidmotion/Refl.java :                 XposedBridge.hookMethod(m, hoo
 dev/flexy/fluidmotion/AppUnlock.java :             XposedBridge.hookMethod(setDuration, SafeHook.before("app unlock stretch", new SafeHook.Body() { // from class: dev.flexy.fluidmotion.AppUnlock$$ExternalSyntheticLambda2
 dev/flexy/fluidmotion/UnlockFlyIn.java :                 XposedBridge.hookMethod(m, SafeHook.before("unlock animation", new SafeHook.Body() { // from class: dev.flexy.fluidmotion.UnlockFlyIn$$ExternalSyntheticLambda0
 
+## Target class constants
+dev/flexy/fluidmotion/ShadeFlyIn.java:28:    private static final String COMPOSE = "androidx.compose.ui.platform.AndroidComposeView";
+dev/flexy/fluidmotion/AppUnlock.java:23:    private static final String CONTROLLER = "com.android.systemui.keyguard.KeyguardSecLegacyUnlockAnimationControllerImpl";
+dev/flexy/fluidmotion/UnlockFlyIn.java:18:    private static final String CELL_LAYOUT = "com.honeyspace.ui.common.CellLayout";
+
 ## Reflected classes, methods and fields
 dev/flexy/fluidmotion/RemoteSettings.java:28:            ctx = (Context) Class.forName("android.app.ActivityThread").getMethod("currentApplication", new Class[0]).invoke(null, new Object[0]);
 dev/flexy/fluidmotion/Refl.java:24:    public static Class<?> findClass(String name, ClassLoader cl) {
