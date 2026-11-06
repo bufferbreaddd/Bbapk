@@ -8,9 +8,33 @@ dev/flexy/fluidmotion/AppUnlock.java :             XposedBridge.hookMethod(setDu
 dev/flexy/fluidmotion/UnlockFlyIn.java :                 XposedBridge.hookMethod(m, SafeHook.before("unlock animation", new SafeHook.Body() { // from class: dev.flexy.fluidmotion.UnlockFlyIn$$ExternalSyntheticLambda0
 
 ## Target class constants
+dev/flexy/fluidmotion/Entry.java:8:    private static final String LAUNCHER = "com.sec.android.app.launcher";
+dev/flexy/fluidmotion/Entry.java:9:    private static final String SYSTEMUI = "com.android.systemui";
+dev/flexy/fluidmotion/XLog.java:8:    private static final String TAG = "FluidMotion";
+dev/flexy/fluidmotion/Settings.java:7:    static final String APP_ENABLED = "app_unlock_enabled";
+dev/flexy/fluidmotion/Settings.java:8:    static final String APP_ZOOM_DURATION = "app_zoom_duration";
+dev/flexy/fluidmotion/Settings.java:9:    static final String APP_ZOOM_SCALE = "app_zoom_scale";
+dev/flexy/fluidmotion/Settings.java:24:    static final String FILE = "settings";
+dev/flexy/fluidmotion/Settings.java:25:    static final String SHADE_DROP = "shade_drop";
+dev/flexy/fluidmotion/Settings.java:26:    static final String SHADE_NOTIF = "shade_notif_enabled";
+dev/flexy/fluidmotion/Settings.java:27:    static final String SHADE_QS = "shade_qs_enabled";
+dev/flexy/fluidmotion/Settings.java:28:    static final String SHADE_SCALE = "shade_scale";
+dev/flexy/fluidmotion/Settings.java:29:    static final String UNLOCK_ANCHOR = "unlock_anchor";
+dev/flexy/fluidmotion/Settings.java:30:    static final String UNLOCK_BOUNCE = "unlock_bounce";
+dev/flexy/fluidmotion/Settings.java:31:    static final String UNLOCK_DURATION = "unlock_duration";
+dev/flexy/fluidmotion/Settings.java:32:    static final String UNLOCK_ENABLED = "unlock_enabled";
+dev/flexy/fluidmotion/Settings.java:33:    static final String UNLOCK_FADE = "unlock_fade";
+dev/flexy/fluidmotion/Settings.java:34:    static final String UNLOCK_SCALE = "unlock_scale";
+dev/flexy/fluidmotion/Settings.java:35:    static final String UNLOCK_STAGGER = "unlock_stagger";
+dev/flexy/fluidmotion/SettingsProvider.java:13:    static final String METHOD_GET = "get";
+dev/flexy/fluidmotion/ShadeFlyIn.java:27:    private static final String BINDER = "com.android.systemui.blur.ui.viewbinder.SecPanelWindowBlurBinder";
 dev/flexy/fluidmotion/ShadeFlyIn.java:28:    private static final String COMPOSE = "androidx.compose.ui.platform.AndroidComposeView";
+dev/flexy/fluidmotion/ShadeFlyIn.java:29:    private static final String DEPTH = "com.android.systemui.statusbar.NotificationShadeDepthController";
+dev/flexy/fluidmotion/ShadeFlyIn.java:31:    private static final String PKG = "com.android.systemui";
+dev/flexy/fluidmotion/ShadeFlyIn.java:34:    private static final String SPLIT = "com.android.systemui.shade.SecPanelSplitHelper";
 dev/flexy/fluidmotion/AppUnlock.java:23:    private static final String CONTROLLER = "com.android.systemui.keyguard.KeyguardSecLegacyUnlockAnimationControllerImpl";
 dev/flexy/fluidmotion/UnlockFlyIn.java:18:    private static final String CELL_LAYOUT = "com.honeyspace.ui.common.CellLayout";
+dev/flexy/fluidmotion/UnlockFlyIn.java:20:    private static final String STUB = "com.android.systemui.shared.system.smartspace.ILauncherUnlockAnimationController$Stub";
 
 ## Reflected classes, methods and fields
 dev/flexy/fluidmotion/RemoteSettings.java:28:            ctx = (Context) Class.forName("android.app.ActivityThread").getMethod("currentApplication", new Class[0]).invoke(null, new Object[0]);
@@ -52,14 +76,6 @@ dev/flexy/fluidmotion/ShadeFlyIn.java:645:                if ("TestTag".equals(n
 dev/flexy/fluidmotion/ShadeFlyIn.java:1025:        return n.contains("Footer") || n.contains("Shelf") || n.contains("EmptyShade");
 
 ## Unlock method signature filters
-21:    private static boolean hooked;
-79:        if (hooked) {
-82:        for (Method m : cls.getDeclaredMethods()) {
-83:            Class<?>[] t = m.getParameterTypes();
-85:                XposedBridge.hookMethod(m, SafeHook.before("unlock animation", new SafeHook.Body() { // from class: dev.flexy.fluidmotion.UnlockFlyIn$$ExternalSyntheticLambda0
-91:                hooked = true;
-92:                XLog.i("unlock animation hooked: " + cls.getName() + "." + m.getName());
-96:        if (!hooked) {
 
 ## Shade hook registration references
 28:    private static final String COMPOSE = "androidx.compose.ui.platform.AndroidComposeView";
