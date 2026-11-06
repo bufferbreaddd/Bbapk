@@ -32,6 +32,8 @@ dev/flexy/fluidmotion/UnlockFlyIn.java:53:        Class<?> cell = Refl.findClass
 dev/flexy/fluidmotion/UnlockFlyIn.java:82:        for (Method m : cls.getDeclaredMethods()) {
 dev/flexy/fluidmotion/UnlockFlyIn.java:85:                XposedBridge.hookMethod(m, SafeHook.before("unlock animation", new SafeHook.Body() { // from class: dev.flexy.fluidmotion.UnlockFlyIn$$ExternalSyntheticLambda0
 
+## Method-selection predicates
+
 ## Animation and preference identifiers
 "android.app.ActivityThread"
 "app_unlock_enabled"
