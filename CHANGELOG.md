@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.11.0
+- Added guarded screen-on and screen-off duration routing through keyguard mediator call stacks.
+
 ## 0.10.0
 - Added guarded keyguard show/hide duration routing through keyguard mediator call stacks.
 
