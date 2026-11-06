@@ -49,7 +49,7 @@ The remaining 12 IDs have independent configuration and in-app preview controls,
 ## Verification still required
 
 1. Build the APK in GitHub Actions.
-2. Enable ColorUp in a compatible legacy Xposed runtime and scope SystemUI and Samsung Launcher. Launcher is currently only a future target; the unlock-to-home transition remains preview-only.
+2. Enable ColorUp in a compatible legacy Xposed runtime and scope SystemUI and Samsung Launcher. Launcher remains in the scope list for future work, but no active Launcher transition hook is installed; unlock-to-home remains preview-only.
 3. Confirm the runtime heartbeat appears in ColorUp.
 4. Enable one experimental transition at a time and save.
 5. Test app-unlock, shade open/close, Quick Settings expand/collapse and notification appearance separately.
