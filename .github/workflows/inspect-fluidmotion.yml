@@ -11,6 +11,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: fluidmotion-inspection
+  cancel-in-progress: true
+
 jobs:
   inspect:
     runs-on: ubuntu-latest
@@ -56,5 +60,7 @@ jobs:
             echo "No inventory changes."
           else
             git commit -m "Add generated FluidMotion hook inventory"
+            git fetch origin main
+            git rebase origin/main
             git push
           fi
