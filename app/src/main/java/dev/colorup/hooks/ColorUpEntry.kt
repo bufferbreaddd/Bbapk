@@ -197,15 +197,6 @@ class ColorUpEntry : IXposedHookLoadPackage {
                         val view = param.args.getOrNull(0) as? View ?: return
                         if (view.isAttachedToWindow) return
 
-                        val pivot = when (config.direction) {
-                            "UP" -> (view.width / 2f) to view.height.toFloat()
-                            "DOWN" -> (view.width / 2f) to 0f
-                            "LEFT" -> view.width.toFloat() to (view.height / 2f)
-                            "RIGHT" -> 0f to (view.height / 2f)
-                            else -> (view.width / 2f) to (view.height / 2f)
-                        }
-                        view.pivotX = pivot.first
-                        view.pivotY = pivot.second
                         view.alpha = 0f
                         view.scaleX = config.scale
                         view.scaleY = config.scale
@@ -226,6 +217,22 @@ class ColorUpEntry : IXposedHookLoadPackage {
                             return
                         }
                         val animateIntoPlace = {
+                            if (unlockHomeConfig.get()?.enabled != true) {
+                                view.alpha = 1f
+                                view.scaleX = 1f
+                                view.scaleY = 1f
+                                view.translationY = 0f
+                                return@let
+                            }
+                            val pivot = when (config.direction) {
+                                "UP" -> (view.width / 2f) to view.height.toFloat()
+                                "DOWN" -> (view.width / 2f) to 0f
+                                "LEFT" -> view.width.toFloat() to (view.height / 2f)
+                                "RIGHT" -> 0f to (view.height / 2f)
+                                else -> (view.width / 2f) to (view.height / 2f)
+                            }
+                            view.pivotX = pivot.first
+                            view.pivotY = pivot.second
                             view.animate().cancel()
                             view.animate()
                                 .alpha(config.fade)
