@@ -51,6 +51,24 @@ dev/flexy/fluidmotion/ShadeFlyIn.java:642:                if ((name instanceof S
 dev/flexy/fluidmotion/ShadeFlyIn.java:645:                if ("TestTag".equals(name) && String.valueOf(((Map.Entry) e).getValue()).endsWith("tile_layout_background")) {
 dev/flexy/fluidmotion/ShadeFlyIn.java:1025:        return n.contains("Footer") || n.contains("Shelf") || n.contains("EmptyShade");
 
+## Unlock method signature filters
+21:    private static boolean hooked;
+79:        if (hooked) {
+82:        for (Method m : cls.getDeclaredMethods()) {
+83:            Class<?>[] t = m.getParameterTypes();
+85:                XposedBridge.hookMethod(m, SafeHook.before("unlock animation", new SafeHook.Body() { // from class: dev.flexy.fluidmotion.UnlockFlyIn$$ExternalSyntheticLambda0
+91:                hooked = true;
+92:                XLog.i("unlock animation hooked: " + cls.getName() + "." + m.getName());
+96:        if (!hooked) {
+
+## Shade hook registration references
+28:    private static final String COMPOSE = "androidx.compose.ui.platform.AndroidComposeView";
+118:        int n = Refl.hookAll(cl, SPLIT, "onPanelExpansionChanged", SafeHook.before("shade expansion", new SafeHook.Body() { // from class: dev.flexy.fluidmotion.ShadeFlyIn$$ExternalSyntheticLambda0
+125:            n += Refl.hookAll(cl, DEPTH, "onPanelExpansionChanged", SafeHook.before("shade expansion depth", new SafeHook.Body() { // from class: dev.flexy.fluidmotion.ShadeFlyIn$$ExternalSyntheticLambda1
+132:        int n2 = n + Refl.hookConstructors(cl, BINDER, SafeHook.after("shade window", new SafeHook.Body() { // from class: dev.flexy.fluidmotion.ShadeFlyIn$$ExternalSyntheticLambda2
+139:            n2 += Refl.hookAll(INSTANCE.composeClass, "dispatchDraw", SafeHook.before("qs fly-in draw", new SafeHook.Body() { // from class: dev.flexy.fluidmotion.ShadeFlyIn$$ExternalSyntheticLambda3
+146:        XLog.i("shade fly-in hooks: " + n2);
+
 ## Animation and preference identifiers
 "android.app.ActivityThread"
 "app_unlock_enabled"
