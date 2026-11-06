@@ -181,9 +181,11 @@ class ColorUpEntry : IXposedHookLoadPackage {
 
     private fun installAppUnlockDurationHook(lpparam: XC_LoadPackage.LoadPackageParam) {
         if (!appUnlockHookInstalled.compareAndSet(false, true)) return
-        if (XposedHelpers.findClassIfExists(appUnlockClass, lpparam.classLoader) == null) {
+        val appUnlockAvailable = XposedHelpers.findClassIfExists(appUnlockClass, lpparam.classLoader) != null
+        val keyguardAvailable = XposedHelpers.findClassIfExists(keyguardMediatorClass, lpparam.classLoader) != null
+        if (!appUnlockAvailable && !keyguardAvailable) {
             appUnlockHookInstalled.set(false)
-            XposedBridge.log("ColorUp: app-unlock duration unsupported; target class missing")
+            XposedBridge.log("ColorUp: unlock/keyguard duration hooks unsupported; target classes missing")
             return
         }
         try {
@@ -194,16 +196,16 @@ class ColorUpEntry : IXposedHookLoadPackage {
                 object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam) {
                         when {
-                            isCallFrom(appUnlockClass) -> {
+                            appUnlockAvailable && isCallFrom(appUnlockClass) -> {
                                 val config = appUnlockConfig.get() ?: return
                                 if (config.enabled) param.args[0] = config.durationMs
                             }
-                            isCallFrom(keyguardMediatorClass, "handleShowInner") -> {
+                            keyguardAvailable && isCallFrom(keyguardMediatorClass, "handleShowInner") -> {
                                 val config = keyguardShowConfig.get() ?: return
                                 if (config.enabled) param.args[0] = config.durationMs
                             }
-                            isCallFrom(keyguardMediatorClass, "handleHide") ||
-                                isCallFrom(keyguardMediatorClass, "handleStartKeyguardExitAnimation") -> {
+                            keyguardAvailable && (isCallFrom(keyguardMediatorClass, "handleHide") ||
+                                isCallFrom(keyguardMediatorClass, "handleStartKeyguardExitAnimation")) -> {
                                 val config = keyguardHideConfig.get() ?: return
                                 if (config.enabled) param.args[0] = config.durationMs
                             }
