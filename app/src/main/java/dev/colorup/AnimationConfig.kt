@@ -2,6 +2,9 @@ package dev.colorup
 
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlin.math.cos
+import kotlin.math.exp
+import kotlin.math.sqrt
 
 data class AnimationSpec(
     val id: String,
@@ -109,3 +112,24 @@ object ConfigCodec {
     val CURVES = setOf("STANDARD", "LINEAR", "EASE_IN", "EASE_OUT", "EASE_IN_OUT", "SPRING")
     val DIRECTIONS = setOf("UP", "DOWN", "LEFT", "RIGHT", "CENTER")
 }
+
+
+object MotionMath {
+    fun ease(progress: Float, curve: String, damping: Float, stiffness: Float): Float {
+        val t = progress.coerceIn(0f, 1f)
+        val value = when (curve) {
+            "LINEAR" -> t
+            "EASE_IN" -> t * t
+            "EASE_OUT" -> 1f - (1f - t) * (1f - t)
+            "EASE_IN_OUT" -> t * t * (3f - 2f * t)
+            "SPRING" -> {
+                val frequency = sqrt((stiffness.coerceIn(50f, 1500f) / 420f).toDouble()) * 6.0
+                val decay = exp(-damping.coerceIn(0.1f, 2f).toDouble() * 6.0 * t.toDouble())
+                (1.0 - decay * cos(frequency * t.toDouble())).toFloat()
+            }
+            else -> 1f - (1f - t) * (1f - t)
+        }
+        return value.coerceIn(0f, 1.15f)
+    }
+}
+
