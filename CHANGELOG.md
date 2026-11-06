@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.0
+- Added a guarded notification dismissal duration hook using the row's remove-animation API.
+
+## 0.8.0
+- Expanded notification appearance animation to use scale, fade, offset, delay, curve, spring and direction settings.
+
 ## 0.7.0
 - Applied per-panel motion curves, spring response and direction anchors to shade and Quick Settings hooks.
 - Kept unlock-to-home preview-only after confirming FluidMotion's third CellLayout argument is a delay, not a duration.
