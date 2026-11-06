@@ -3,7 +3,7 @@
 A per-transition animation configuration studio for Samsung One UI, inspired by fluid ColorOS-style motion.
 
 **Compatibility target:** One UI 8.5, device-model agnostic by design. Actual support is determined by the installed hook runtime and the tested One UI build.  
-**App:** ColorUp · **Current preview:** 0.2.0
+**App:** ColorUp · **Current preview:** 0.3.0
 
 ## What works in this preview
 
@@ -12,15 +12,17 @@ A per-transition animation configuration studio for Samsung One UI, inspired by 
 - Fluid, Crisp, Gentle and Stock starting presets.
 - In-app motion preview for editing values.
 - JSON import/export.
-- Read-only configuration provider restricted to SystemUI and Samsung Launcher callers.
+- Read-only configuration provider restricted to SystemUI and Samsung Launcher callers, with live config refresh.
+- Experimental app-unlock duration hook, guarded by Samsung's keyguard controller call stack.
+- Experimental Quick Settings scale/vertical-motion hook, guarded by the Compose Quick Settings root ID and expansion callback.
 - Legacy Xposed entry point scoped to SystemUI and Samsung Launcher.
 - Root export to `/data/adb/colorup/config.json` for backup/inspection.
 
 ## Important: animation engine status
 
-**0.2.0 is a configuration-studio preview, not a complete system animation engine.** The app can edit, preview, import, export and save configuration. The Xposed bootstrap can connect to the read-only configuration provider. It does not yet alter One UI's real system transitions. No transition should be treated as supported until its owner method has been identified, hooked and tested on a real One UI 8.5 device.
+**0.3.0 is an experimental preview, not a complete system animation engine.** Two reference-derived hooks can now affect app-unlock duration and Quick Settings panel scale/vertical offset. They are guarded by runtime class/callsite/resource checks, but have not yet been tested on a retail One UI 8.5 device. The remaining 16 transitions are editor/preview-only. See [hook status](docs/HOOK-STATUS.md) for exact boundaries and verification requirements.
 
-The reference FluidMotion APK is analysed by a GitHub Actions workflow. Only a technical inventory of hook sites and setting identifiers is committed; decompiled source is not redistributed. See [the current inventory](docs/reference-analysis/FLUIDMOTION-HOOK-INVENTORY.md).
+The reference FluidMotion APK is analysed by a GitHub Actions workflow. Only a technical inventory of hook sites and setting identifiers is committed; decompiled source is not redistributed. See [the current inventory](docs/reference-analysis/FLUIDMOTION-HOOK-INVENTORY.md) and [hook status](docs/HOOK-STATUS.md).
 
 ## Build
 
