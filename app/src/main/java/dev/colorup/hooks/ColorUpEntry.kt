@@ -37,12 +37,15 @@ import java.util.concurrent.atomic.AtomicReference
  */
 class ColorUpEntry : IXposedHookLoadPackage {
     private data class AppUnlockConfig(val enabled: Boolean, val durationMs: Long)
+    private data class DurationConfig(val enabled: Boolean, val durationMs: Long)
     private data class PanelConfig(val enabled: Boolean, val scale: Float, val translateY: Int, val curve: String, val springDamping: Float, val springStiffness: Float, val direction: String)
     private data class NotificationConfig(val enabled: Boolean, val durationMs: Long, val offsetDp: Int, val scale: Float, val fade: Float, val delayMs: Long, val curve: String, val damping: Float, val stiffness: Float, val direction: String)
     private data class NotificationState(val config: NotificationConfig, val alpha: Float, val scaleX: Float, val scaleY: Float, val translationY: Float)
     private data class NotificationDismissConfig(val enabled: Boolean, val durationMs: Long)
 
     private val appUnlockConfig = AtomicReference<AppUnlockConfig?>(null)
+    private val keyguardShowConfig = AtomicReference<DurationConfig?>(null)
+    private val keyguardHideConfig = AtomicReference<DurationConfig?>(null)
     private val shadeOpenConfig = AtomicReference<PanelConfig?>(null)
     private val shadeCloseConfig = AtomicReference<PanelConfig?>(null)
     private val qsExpandConfig = AtomicReference<PanelConfig?>(null)
@@ -59,6 +62,7 @@ class ColorUpEntry : IXposedHookLoadPackage {
 
     private val configUri = Uri.parse("content://dev.colorup.config/config")
     private val appUnlockClass = "com.android.systemui.keyguard.KeyguardSecLegacyUnlockAnimationControllerImpl"
+    private val keyguardMediatorClass = "com.android.systemui.keyguard.KeyguardViewMediator"
     private val splitHelperClass = "com.android.systemui.shade.SecPanelSplitHelper"
     private val depthControllerClass = "com.android.systemui.statusbar.NotificationShadeDepthController"
     private val composeViewClass = "androidx.compose.ui.platform.AndroidComposeView"
@@ -110,6 +114,8 @@ class ColorUpEntry : IXposedHookLoadPackage {
         appUnlockConfig.set(findAnimation(root, "unlock_to_app")?.let {
             AppUnlockConfig(it.optBoolean("enabled", false), it.optInt("durationMs", 320).coerceIn(0, 2000).toLong())
         })
+        keyguardShowConfig.set(durationConfig(root, "keyguard_show"))
+        keyguardHideConfig.set(durationConfig(root, "keyguard_hide"))
         shadeOpenConfig.set(panelConfig(root, "shade_open"))
         shadeCloseConfig.set(panelConfig(root, "shade_close"))
         qsExpandConfig.set(panelConfig(root, "qs_expand"))
@@ -140,6 +146,11 @@ class ColorUpEntry : IXposedHookLoadPackage {
                 ", quickSettings=" + (qsExpandConfig.get()?.enabled == true || qsCollapseConfig.get()?.enabled == true)
         )
     }
+
+    private fun durationConfig(root: JSONObject, id: String): DurationConfig? =
+        findAnimation(root, id)?.let {
+            DurationConfig(it.optBoolean("enabled", false), it.optInt("durationMs", 320).coerceIn(0, 2000).toLong())
+        }
 
     private fun panelConfig(root: JSONObject, id: String): PanelConfig? =
         findAnimation(root, id)?.let {
@@ -182,9 +193,21 @@ class ColorUpEntry : IXposedHookLoadPackage {
                 java.lang.Long.TYPE,
                 object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam) {
-                        if (!isCallFrom(appUnlockClass)) return
-                        val config = appUnlockConfig.get() ?: return
-                        if (config.enabled) param.args[0] = config.durationMs
+                        when {
+                            isCallFrom(appUnlockClass) -> {
+                                val config = appUnlockConfig.get() ?: return
+                                if (config.enabled) param.args[0] = config.durationMs
+                            }
+                            isCallFrom(keyguardMediatorClass, "handleShowInner") -> {
+                                val config = keyguardShowConfig.get() ?: return
+                                if (config.enabled) param.args[0] = config.durationMs
+                            }
+                            isCallFrom(keyguardMediatorClass, "handleHide") ||
+                                isCallFrom(keyguardMediatorClass, "handleStartKeyguardExitAnimation") -> {
+                                val config = keyguardHideConfig.get() ?: return
+                                if (config.enabled) param.args[0] = config.durationMs
+                            }
+                        }
                     }
                 }
             )
@@ -413,6 +436,9 @@ class ColorUpEntry : IXposedHookLoadPackage {
 
     private fun isCallFrom(className: String): Boolean =
         Thread.currentThread().stackTrace.any { it.className == className }
+
+    private fun isCallFrom(className: String, methodName: String): Boolean =
+        Thread.currentThread().stackTrace.any { it.className == className && it.methodName == methodName }
 
     private fun findAnimation(root: JSONObject, id: String): JSONObject? {
         val animations = root.optJSONArray("animations") ?: return null
