@@ -216,13 +216,13 @@ class ColorUpEntry : IXposedHookLoadPackage {
                             view.translationY = 0f
                             return
                         }
-                        val animateIntoPlace = {
+                        val animateIntoPlace = animate@{
                             if (unlockHomeConfig.get()?.enabled != true) {
                                 view.alpha = 1f
                                 view.scaleX = 1f
                                 view.scaleY = 1f
                                 view.translationY = 0f
-                                return@let
+                                return@animate
                             }
                             val pivot = when (config.direction) {
                                 "UP" -> (view.width / 2f) to view.height.toFloat()
