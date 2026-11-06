@@ -45,7 +45,7 @@ object AnimationCatalog {
         val result = defaults.map { it.copy() }.toMutableList()
         result.forEach { s ->
             when (name) {
-                "Fluid" -> { s.enabled = s.id == "unlock_to_app"; s.durationMs = 430; s.curve = "SPRING"; s.scale = 1.04f; s.springDamping = 0.78f; s.springStiffness = 360f; s.translateY = 30 }
+                "Fluid" -> { s.enabled = s.id == "unlock_to_app" || s.id == "qs_expand"; s.durationMs = 430; s.curve = "SPRING"; s.scale = 1.04f; s.springDamping = 0.78f; s.springStiffness = 360f; s.translateY = 30 }
                 "Crisp" -> { s.enabled = s.id == "unlock_to_app"; s.durationMs = 220; s.curve = "EASE_OUT"; s.scale = 1f; s.fade = 1f; s.translateY = 12 }
                 "Gentle" -> { s.enabled = s.id == "unlock_to_app"; s.durationMs = 520; s.curve = "EASE_IN_OUT"; s.scale = 1.01f; s.fade = 0.96f; s.translateY = 16 }
                 else -> Unit
