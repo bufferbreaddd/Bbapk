@@ -29,8 +29,8 @@ The pipeline uses Samsung panel-expansion callbacks and `AndroidComposeView.disp
 - Parent guard: `NotificationStackScrollLayout`
 - Child guard: `ExpandableNotificationRow`
 - Hooked API: `ViewGroup.addView(View, int)`
-- Before insertion, the row is placed at the configured vertical offset with alpha zero; after insertion it animates to its normal position and full alpha.
-- Duration is clamped to 0–2000 ms.
+- Before insertion, the row uses the configured start scale, fade amount and vertical offset; after insertion it animates back to its original properties.
+- Duration and delay are clamped; curve, spring response and direction anchor are configurable.
 - If the exact parent or child classes are missing, the hook is not installed.
 
 This hook is a narrow ColorUp implementation and is not copied from FluidMotion. It is not yet confirmed against the user's exact One UI 8.5 build.
