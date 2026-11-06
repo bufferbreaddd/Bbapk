@@ -46,6 +46,8 @@ class ColorUpEntry : IXposedHookLoadPackage {
     private val appUnlockConfig = AtomicReference<AppUnlockConfig?>(null)
     private val keyguardShowConfig = AtomicReference<DurationConfig?>(null)
     private val keyguardHideConfig = AtomicReference<DurationConfig?>(null)
+    private val screenOnConfig = AtomicReference<DurationConfig?>(null)
+    private val screenOffConfig = AtomicReference<DurationConfig?>(null)
     private val shadeOpenConfig = AtomicReference<PanelConfig?>(null)
     private val shadeCloseConfig = AtomicReference<PanelConfig?>(null)
     private val qsExpandConfig = AtomicReference<PanelConfig?>(null)
@@ -116,6 +118,8 @@ class ColorUpEntry : IXposedHookLoadPackage {
         })
         keyguardShowConfig.set(durationConfig(root, "keyguard_show"))
         keyguardHideConfig.set(durationConfig(root, "keyguard_hide"))
+        screenOnConfig.set(durationConfig(root, "screen_on"))
+        screenOffConfig.set(durationConfig(root, "screen_off"))
         shadeOpenConfig.set(panelConfig(root, "shade_open"))
         shadeCloseConfig.set(panelConfig(root, "shade_close"))
         qsExpandConfig.set(panelConfig(root, "qs_expand"))
@@ -198,6 +202,17 @@ class ColorUpEntry : IXposedHookLoadPackage {
                         when {
                             appUnlockAvailable && isCallFrom(appUnlockClass) -> {
                                 val config = appUnlockConfig.get() ?: return
+                                if (config.enabled) param.args[0] = config.durationMs
+                            }
+                            keyguardAvailable && (isCallFrom(keyguardMediatorClass, "handleNotifyScreenTurningOn") ||
+                                isCallFrom(keyguardMediatorClass, "handleNotifyScreenTurnedOn")) -> {
+                                val config = screenOnConfig.get() ?: return
+                                if (config.enabled) param.args[0] = config.durationMs
+                            }
+                            keyguardAvailable && (isCallFrom(keyguardMediatorClass, "handleNotifyStartedGoingToSleep") ||
+                                isCallFrom(keyguardMediatorClass, "handleNotifyFinishedGoingToSleep") ||
+                                isCallFrom(keyguardMediatorClass, "handleNotifyScreenTurnedOff")) -> {
+                                val config = screenOffConfig.get() ?: return
                                 if (config.enabled) param.args[0] = config.durationMs
                             }
                             keyguardAvailable && isCallFrom(keyguardMediatorClass, "handleShowInner") -> {
