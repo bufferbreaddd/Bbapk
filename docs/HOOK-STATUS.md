@@ -35,9 +35,21 @@ The pipeline uses Samsung panel-expansion callbacks and `AndroidComposeView.disp
 
 This hook is a narrow ColorUp implementation and is not copied from FluidMotion. It is not yet confirmed against the user's exact One UI 8.5 build.
 
+## Experimental candidate: notification dismissal duration
+
+- Config ID: `notification_dismiss`
+- Process: `com.android.systemui`
+- Row class guard: `ExpandableNotificationRow`
+- Method guard: `performRemoveAnimation` returning `long`, with leading parameters `(long, long, float)`.
+- Changes only the animation duration argument; all other removal behavior and callbacks remain owned by SystemUI.
+- Duration is clamped to 0–2000 ms.
+- If the row class or matching method is missing, the hook is not installed.
+
+This signature is based on the AOSP notification-row API and is runtime-checked; Samsung may use a different implementation.
+
 ## Preview/configuration-only transitions
 
-The remaining 12 IDs have independent configuration and in-app preview controls, but no system hook is installed for them yet. Their enable switches are unavailable in the UI.
+The remaining 11 IDs have independent configuration and in-app preview controls, but no system hook is installed for them yet. Their enable switches are unavailable in the UI.
 
 ## Configuration bridge
 
@@ -52,7 +64,7 @@ The remaining 12 IDs have independent configuration and in-app preview controls,
 2. Enable ColorUp in a compatible legacy Xposed runtime and scope SystemUI and Samsung Launcher. Launcher remains in the scope list for future work, but no active Launcher transition hook is installed; unlock-to-home remains preview-only.
 3. Confirm the runtime heartbeat appears in ColorUp.
 4. Enable one experimental transition at a time and save.
-5. Test app-unlock, shade open/close, Quick Settings expand/collapse and notification appearance separately.
+5. Test app-unlock, shade open/close, Quick Settings expand/collapse, notification appearance and notification dismissal separately.
 6. Confirm unrelated animations remain unchanged.
 7. Disable each setting and save; verify stock behavior returns.
 8. Test on the exact One UI build and record the build fingerprint.
