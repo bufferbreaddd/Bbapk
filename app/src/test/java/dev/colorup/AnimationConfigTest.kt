@@ -55,5 +55,6 @@ class AnimationConfigTest {
         assertEquals(0, item.delayMs)
         assertEquals("STANDARD", item.curve)
         assertEquals("UP", item.direction)
+        assertFalse(item.enabled)
     }
 }
