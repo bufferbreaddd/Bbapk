@@ -59,4 +59,17 @@ class AnimationConfigTest {
         assertEquals("UP", item.direction)
         assertFalse(item.enabled)
     }
+
+    @Test
+    fun panelMotionCurvesStayWithinSafeBounds() {
+        assertEquals(0.5f, MotionMath.ease(0.5f, "LINEAR", 0.8f, 420f), 0.0001f)
+        assertEquals(0.25f, MotionMath.ease(0.5f, "EASE_IN", 0.8f, 420f), 0.0001f)
+        assertEquals(0.75f, MotionMath.ease(0.5f, "EASE_OUT", 0.8f, 420f), 0.0001f)
+        assertEquals(0.5f, MotionMath.ease(0.5f, "EASE_IN_OUT", 0.8f, 420f), 0.0001f)
+        assertEquals(0f, MotionMath.ease(0f, "SPRING", 0.8f, 420f), 0.0001f)
+        for (i in 0..100) {
+            val value = MotionMath.ease(i / 100f, "SPRING", 0.8f, 720f)
+            assertTrue(value in 0f..1.15f)
+        }
+    }
 }
