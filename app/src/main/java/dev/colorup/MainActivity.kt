@@ -15,6 +15,7 @@ class MainActivity : Activity() {
     private var specs = AnimationCatalog.defaults.map { it.copy() }.toMutableList()
     private lateinit var status: TextView
     private lateinit var content: LinearLayout
+    private lateinit var editorContainer: LinearLayout
     private val prefs by lazy { getSharedPreferences("colorup", MODE_PRIVATE) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -53,6 +54,8 @@ class MainActivity : Activity() {
         fileRow.addView(Button(this).apply { text = "Export"; setOnClickListener { exportConfig() } }, LinearLayout.LayoutParams(0, -2, 1f))
         fileRow.addView(Button(this).apply { text = "Import"; setOnClickListener { importConfig() } }, LinearLayout.LayoutParams(0, -2, 1f))
         content.addView(fileRow)
+        editorContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        content.addView(editorContainer)
         renderEditors()
         content.addView(Button(this).apply {
             text = "Save configuration"
@@ -64,12 +67,12 @@ class MainActivity : Activity() {
     }
 
     private fun renderEditors() {
-        content.removeViews(4, (content.childCount - 4).coerceAtLeast(0))
+        editorContainer.removeAllViews()
         specs.groupBy { it.group }.forEach { (group, items) ->
-            content.addView(label(group.uppercase(), 12, true))
-            items.forEach { content.addView(editor(it)) }
+            editorContainer.addView(label(group.uppercase(), 12, true))
+            items.forEach { editorContainer.addView(editor(it)) }
         }
-        content.addView(Button(this).apply { text = "Save configuration"; setOnClickListener { saveConfig() } })
+        editorContainer.addView(Button(this).apply { text = "Save configuration"; setOnClickListener { saveConfig() } })
     }
 
     private fun editor(spec: AnimationSpec): View {
