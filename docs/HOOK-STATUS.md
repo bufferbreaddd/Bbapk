@@ -11,6 +11,17 @@ Last reviewed against the repository's FluidMotion reference APK and the current
 - Changes duration only when the call stack contains the exact controller class.
 - Duration range: 0–2000 ms.
 
+## Experimental candidates: keyguard show and hide duration
+
+- Config IDs: `keyguard_show`, `keyguard_hide`
+- Process: `com.android.systemui`
+- Runtime callsite guard: `KeyguardViewMediator.handleShowInner` for showing and `handleHide` / `handleStartKeyguardExitAnimation` for hiding.
+- Hooked API: `ValueAnimator.setDuration(long)`.
+- Only animator duration calls whose stack contains the matching keyguard method are changed.
+- Duration is clamped to 0–2000 ms.
+
+These method names are based on AOSP's keyguard mediator flow and are guarded by exact stack-frame matching. Samsung may have changed or replaced these methods, so the controls remain experimental until verified on One UI 8.5.
+
 ## Experimental candidates: shade and Quick Settings motion
 
 | Config ID | Panel direction | Root resource name |
@@ -49,7 +60,7 @@ This signature is based on the AOSP notification-row API and is runtime-checked;
 
 ## Preview/configuration-only transitions
 
-The remaining 11 IDs have independent configuration and in-app preview controls, but no system hook is installed for them yet. Their enable switches are unavailable in the UI.
+The remaining 9 IDs have independent configuration and in-app preview controls, but no system hook is installed for them yet. Their enable switches are unavailable in the UI.
 
 ## Configuration bridge
 
@@ -64,7 +75,7 @@ The remaining 11 IDs have independent configuration and in-app preview controls,
 2. Enable ColorUp in a compatible legacy Xposed runtime and scope SystemUI and Samsung Launcher. Launcher remains in the scope list for future work, but no active Launcher transition hook is installed; unlock-to-home remains preview-only.
 3. Confirm the runtime heartbeat appears in ColorUp.
 4. Enable one experimental transition at a time and save.
-5. Test app-unlock, shade open/close, Quick Settings expand/collapse, notification appearance and notification dismissal separately.
+5. Test keyguard show/hide, app-unlock, shade open/close, Quick Settings expand/collapse, notification appearance and notification dismissal separately.
 6. Confirm unrelated animations remain unchanged.
 7. Disable each setting and save; verify stock behavior returns.
 8. Test on the exact One UI build and record the build fingerprint.
