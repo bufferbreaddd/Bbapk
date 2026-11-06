@@ -22,6 +22,17 @@ Last reviewed against the repository's FluidMotion reference APK and the current
 
 These method names are based on AOSP's keyguard mediator flow and are guarded by exact stack-frame matching. Samsung may have changed or replaced these methods, so the controls remain experimental until verified on One UI 8.5.
 
+## Experimental candidates: screen on and screen off duration
+
+- Config IDs: `screen_on`, `screen_off`
+- Process: `com.android.systemui`
+- Screen-on callsite guards: `KeyguardViewMediator.handleNotifyScreenTurningOn` and `handleNotifyScreenTurnedOn`.
+- Screen-off callsite guards: `handleNotifyStartedGoingToSleep`, `handleNotifyFinishedGoingToSleep` and `handleNotifyScreenTurnedOff`.
+- Hooked API: `ValueAnimator.setDuration(long)`; only calls with the matching keyguard mediator frame are changed.
+- Duration is clamped to 0–2000 ms.
+
+These are Android SystemUI callsite candidates, not verified Samsung One UI method mappings. If Samsung's implementation differs, they safely remain inactive.
+
 ## Experimental candidates: shade and Quick Settings motion
 
 | Config ID | Panel direction | Root resource name |
@@ -60,7 +71,7 @@ This signature is based on the AOSP notification-row API and is runtime-checked;
 
 ## Preview/configuration-only transitions
 
-The remaining 9 IDs have independent configuration and in-app preview controls, but no system hook is installed for them yet. Their enable switches are unavailable in the UI.
+The remaining 7 IDs have independent configuration and in-app preview controls, but no system hook is installed for them yet. Their enable switches are unavailable in the UI.
 
 ## Configuration bridge
 
@@ -75,7 +86,7 @@ The remaining 9 IDs have independent configuration and in-app preview controls, 
 2. Enable ColorUp in a compatible legacy Xposed runtime and scope SystemUI and Samsung Launcher. Launcher remains in the scope list for future work, but no active Launcher transition hook is installed; unlock-to-home remains preview-only.
 3. Confirm the runtime heartbeat appears in ColorUp.
 4. Enable one experimental transition at a time and save.
-5. Test keyguard show/hide, app-unlock, shade open/close, Quick Settings expand/collapse, notification appearance and notification dismissal separately.
+5. Test screen on/off, keyguard show/hide, app-unlock, shade open/close, Quick Settings expand/collapse, notification appearance and notification dismissal separately.
 6. Confirm unrelated animations remain unchanged.
 7. Disable each setting and save; verify stock behavior returns.
 8. Test on the exact One UI build and record the build fingerprint.
