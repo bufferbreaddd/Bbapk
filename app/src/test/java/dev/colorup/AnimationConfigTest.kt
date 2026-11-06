@@ -23,6 +23,8 @@ class AnimationConfigTest {
         assertTrue(fluid.first { it.id == "unlock_to_app" }.enabled)
         assertTrue(fluid.first { it.id == "keyguard_show" }.enabled)
         assertTrue(fluid.first { it.id == "keyguard_hide" }.enabled)
+        assertTrue(fluid.first { it.id == "screen_on" }.enabled)
+        assertTrue(fluid.first { it.id == "screen_off" }.enabled)
         assertTrue(fluid.first { it.id == "shade_open" }.enabled)
         assertTrue(fluid.first { it.id == "shade_close" }.enabled)
         assertTrue(fluid.first { it.id == "qs_expand" }.enabled)
