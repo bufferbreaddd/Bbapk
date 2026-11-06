@@ -181,6 +181,7 @@ class MainActivity : Activity() {
     private fun saveConfig() {
         val json = ConfigCodec.encode(specs)
         prefs.edit().putString("config_json", json).putLong("updated_at", System.currentTimeMillis()).apply()
+        contentResolver.notifyChange(Uri.parse("content://dev.colorup.config/config"), null)
         val encoded = android.util.Base64.encodeToString(json.toByteArray(Charsets.UTF_8), android.util.Base64.NO_WRAP)
         try {
             val process = Runtime.getRuntime().exec("su")
