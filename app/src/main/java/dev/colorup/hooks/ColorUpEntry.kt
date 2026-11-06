@@ -27,6 +27,7 @@ class ColorUpEntry : IXposedHookLoadPackage {
 
     private val appUnlockConfig = AtomicReference<AppUnlockConfig?>(null)
     private val hookInstalled = AtomicBoolean(false)
+    private var configObserver: ContentObserver? = null
     private val configUri = Uri.parse("content://dev.colorup.config/config")
     private val targetClass = "com.android.systemui.keyguard.KeyguardSecLegacyUnlockAnimationControllerImpl"
 
@@ -87,6 +88,7 @@ class ColorUpEntry : IXposedHookLoadPackage {
                     refreshConfig(context, pkg)
                 }
             }
+            configObserver = observer
             context.contentResolver.registerContentObserver(configUri, false, observer)
         } catch (error: Throwable) {
             XposedBridge.log("ColorUp: live config observer unavailable: " + error)
