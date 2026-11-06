@@ -87,6 +87,16 @@ dev/flexy/fluidmotion/ShadeFlyIn.java:1025:        return n.contains("Footer") |
 96:        if (!hooked) {
 
 ## Unlock callback argument usage
+58:                UnlockFlyIn.hookController(methodHookParam.thisObject.getClass());
+71:        if (p.args.length <= 0 || !(p.args[0] instanceof View) || ((View) p.args[0]).isAttachedToWindow()) {
+105:            View root = (View) p.args[0];
+106:            p.args[0] = new View(root.getContext());
+107:            INSTANCE.start(root, ((Long) p.args[2]).longValue());
+134:        root.setAlpha(1.0f);
+135:        root.setScaleX(1.0f);
+136:        root.setScaleY(1.0f);
+139:            XLog.i("unlock: nothing to animate");
+210:        this.matrix.setScale(s, s, it.ax, it.ay);
 
 ## Shade hook registration references
 28:    private static final String COMPOSE = "androidx.compose.ui.platform.AndroidComposeView";
