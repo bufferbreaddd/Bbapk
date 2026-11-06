@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.0
+- Added guarded notification-row appearance animation.
+- Added experimental notification appearance controls and updated preset validation.
+
 ## 0.5.0
 - Added guarded unlock-to-home duration hook in Samsung Launcher.
 - Added app-unlock duration hook in SystemUI.
