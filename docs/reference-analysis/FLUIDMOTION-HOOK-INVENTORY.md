@@ -86,6 +86,8 @@ dev/flexy/fluidmotion/ShadeFlyIn.java:1025:        return n.contains("Footer") |
 92:                XLog.i("unlock animation hooked: " + cls.getName() + "." + m.getName());
 96:        if (!hooked) {
 
+## Unlock callback argument usage
+
 ## Shade hook registration references
 28:    private static final String COMPOSE = "androidx.compose.ui.platform.AndroidComposeView";
 118:        int n = Refl.hookAll(cl, SPLIT, "onPanelExpansionChanged", SafeHook.before("shade expansion", new SafeHook.Body() { // from class: dev.flexy.fluidmotion.ShadeFlyIn$$ExternalSyntheticLambda0
