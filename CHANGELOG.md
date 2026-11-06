@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.7.0
+- Applied per-panel motion curves, spring response and direction anchors to shade and Quick Settings hooks.
+
 ## 0.6.0
 - Added guarded notification-row appearance animation.
 - Added experimental notification appearance controls and updated preset validation.
