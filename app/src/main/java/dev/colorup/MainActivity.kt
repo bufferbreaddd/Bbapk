@@ -180,7 +180,7 @@ class MainActivity : Activity() {
             "EASE_IN" -> AccelerateInterpolator()
             "EASE_OUT" -> DecelerateInterpolator()
             "EASE_IN_OUT", "STANDARD" -> AccelerateDecelerateInterpolator()
-            "SPRING" -> OvershootInterpolator((1.0f - spec.springDamping).coerceIn(0.1f, 1.2f))
+            "SPRING" -> OvershootInterpolator(((spec.springStiffness / 420f) * (1.0f - spec.springDamping)).coerceIn(0.1f, 3f))
             else -> AccelerateDecelerateInterpolator()
         }
         view.translationX = x
