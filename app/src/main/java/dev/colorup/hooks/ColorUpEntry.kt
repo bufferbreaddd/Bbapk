@@ -11,6 +11,10 @@ import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
+import android.view.animation.AccelerateInterpolator
+import android.view.animation.AccelerateDecelerateInterpolator
+import android.view.animation.LinearInterpolator
+import android.view.animation.OvershootInterpolator
 import de.robv.android.xposed.IXposedHookLoadPackage
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
@@ -33,7 +37,8 @@ import java.util.concurrent.atomic.AtomicReference
 class ColorUpEntry : IXposedHookLoadPackage {
     private data class AppUnlockConfig(val enabled: Boolean, val durationMs: Long)
     private data class PanelConfig(val enabled: Boolean, val scale: Float, val translateY: Int, val curve: String, val springDamping: Float, val springStiffness: Float, val direction: String)
-    private data class NotificationConfig(val enabled: Boolean, val durationMs: Long, val offsetDp: Int)
+    private data class NotificationConfig(val enabled: Boolean, val durationMs: Long, val offsetDp: Int, val scale: Float, val fade: Float, val delayMs: Long, val curve: String, val damping: Float, val stiffness: Float, val direction: String)
+    private data class NotificationState(val config: NotificationConfig, val alpha: Float, val scaleX: Float, val scaleY: Float, val translationY: Float)
 
     private val appUnlockConfig = AtomicReference<AppUnlockConfig?>(null)
     private val shadeOpenConfig = AtomicReference<PanelConfig?>(null)
@@ -108,7 +113,14 @@ class ColorUpEntry : IXposedHookLoadPackage {
             NotificationConfig(
                 enabled = it.optBoolean("enabled", false),
                 durationMs = it.optInt("durationMs", 320).coerceIn(0, 2000).toLong(),
-                offsetDp = it.optInt("translateY", 24).coerceIn(-150, 150)
+                offsetDp = it.optInt("translateY", 24).coerceIn(-150, 150),
+                scale = it.optDouble("scale", 1.0).toFloat().coerceIn(0.5f, 1.5f),
+                fade = it.optDouble("fade", 1.0).toFloat().coerceIn(0f, 1f),
+                delayMs = it.optInt("delayMs", 0).coerceIn(0, 1000).toLong(),
+                curve = it.optString("curve", "STANDARD"),
+                damping = it.optDouble("springDamping", 0.82).toFloat().coerceIn(0.1f, 2f),
+                stiffness = it.optDouble("springStiffness", 420.0).toFloat().coerceIn(50f, 1500f),
+                direction = it.optString("direction", "UP")
             )
         })
         XposedBridge.log(
@@ -194,20 +206,43 @@ class ColorUpEntry : IXposedHookLoadPackage {
                         if (row.javaClass.name != notificationRowClass) return
                         val config = notificationAppearConfig.get() ?: return
                         if (!config.enabled) return
+                        val state = NotificationState(config, row.alpha, row.scaleX, row.scaleY, row.translationY)
                         val offsetPx = config.offsetDp * row.resources.displayMetrics.density
                         row.animate().cancel()
-                        row.alpha = 0f
-                        row.translationY = offsetPx
-                        param.setObjectExtra(NOTIFICATION_CONFIG_KEY, config)
+                        row.alpha = state.alpha * (1f - config.fade)
+                        row.scaleX = state.scaleX * config.scale
+                        row.scaleY = state.scaleY * config.scale
+                        row.translationY = state.translationY + offsetPx
+                        param.setObjectExtra(NOTIFICATION_CONFIG_KEY, state)
                     }
 
                     override fun afterHookedMethod(param: MethodHookParam) {
-                        val config = param.getObjectExtra(NOTIFICATION_CONFIG_KEY) as? NotificationConfig ?: return
+                        val state = param.getObjectExtra(NOTIFICATION_CONFIG_KEY) as? NotificationState ?: return
                         val row = param.args.getOrNull(0) as? View ?: return
-                        row.animate().alpha(1f).translationY(0f)
-                            .setDuration(config.durationMs)
-                            .setInterpolator(DecelerateInterpolator())
-                            .start()
+                        row.post {
+                            if (notificationAppearConfig.get()?.enabled != true) {
+                                row.alpha = state.alpha
+                                row.scaleX = state.scaleX
+                                row.scaleY = state.scaleY
+                                row.translationY = state.translationY
+                                return@post
+                            }
+                            val pivot = when (state.config.direction) {
+                                "UP" -> (row.width / 2f) to row.height.toFloat()
+                                "DOWN" -> (row.width / 2f) to 0f
+                                "LEFT" -> row.width.toFloat() to (row.height / 2f)
+                                "RIGHT" -> 0f to (row.height / 2f)
+                                else -> (row.width / 2f) to (row.height / 2f)
+                            }
+                            row.pivotX = pivot.first
+                            row.pivotY = pivot.second
+                            row.animate().alpha(state.alpha).scaleX(state.scaleX).scaleY(state.scaleY)
+                                .translationY(state.translationY)
+                                .setStartDelay(state.config.delayMs)
+                                .setDuration(state.config.durationMs)
+                                .setInterpolator(notificationInterpolator(state.config))
+                                .start()
+                        }
                     }
                 }
             )
@@ -217,6 +252,18 @@ class ColorUpEntry : IXposedHookLoadPackage {
             XposedBridge.log("ColorUp: notification appear hook unavailable: " + error)
         }
     }
+
+    private fun notificationInterpolator(config: NotificationConfig): android.view.animation.Interpolator =
+        when (config.curve) {
+            "LINEAR" -> LinearInterpolator()
+            "EASE_IN" -> AccelerateInterpolator()
+            "EASE_OUT" -> DecelerateInterpolator()
+            "EASE_IN_OUT", "STANDARD" -> AccelerateDecelerateInterpolator()
+            "SPRING" -> OvershootInterpolator(
+                ((config.stiffness / 420f) * (1f - config.damping)).coerceIn(0.1f, 3f)
+            )
+            else -> DecelerateInterpolator()
+        }
 
     private fun installPanelExpansionHooks(lpparam: XC_LoadPackage.LoadPackageParam) {
         if (!panelHooksInstalled.compareAndSet(false, true)) return
