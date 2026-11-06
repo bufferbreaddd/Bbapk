@@ -14,10 +14,14 @@ class ConfigProvider : ContentProvider() {
     override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor {
         val allowed = setOf("com.android.systemui", "com.sec.android.app.launcher", "dev.colorup")
         val packages = context?.packageManager?.getPackagesForUid(Binder.getCallingUid())?.toSet().orEmpty()
-        if (packages.none { it in allowed }) throw SecurityException("Caller is outside ColorUp's allowlist")
+        val caller = packages.firstOrNull { it in allowed }
+            ?: throw SecurityException("Caller is outside ColorUp's allowlist")
         if (uri.path != "/config") throw IllegalArgumentException("Unknown config endpoint")
-        val json = context?.getSharedPreferences("colorup", android.content.Context.MODE_PRIVATE)
-            ?.getString("config_json", null) ?: ConfigCodec.encode(AnimationCatalog.defaults)
+        val preferences = context?.getSharedPreferences("colorup", android.content.Context.MODE_PRIVATE)
+        if (caller != "dev.colorup") {
+            preferences?.edit()?.putString("last_runtime_seen_pkg", caller)?.putLong("last_runtime_seen_at", System.currentTimeMillis())?.apply()
+        }
+        val json = preferences?.getString("config_json", null) ?: ConfigCodec.encode(AnimationCatalog.defaults)
         return MatrixCursor(arrayOf("json")).apply { addRow(arrayOf(json)) }
     }
 
