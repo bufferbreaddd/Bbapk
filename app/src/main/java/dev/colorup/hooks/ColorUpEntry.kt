@@ -213,7 +213,7 @@ class ColorUpEntry : IXposedHookLoadPackage {
                     }
                 }
             )
-            XposedBridge.log("ColorUp: app-unlock duration hook installed")
+            XposedBridge.log("ColorUp: duration hooks installed; appUnlock=" + appUnlockAvailable + ", keyguard=" + keyguardAvailable)
         } catch (error: Throwable) {
             appUnlockHookInstalled.set(false)
             XposedBridge.log("ColorUp: app-unlock duration hook unavailable: " + error)
