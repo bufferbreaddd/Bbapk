@@ -50,7 +50,7 @@ jobs:
             grep -RInE 'Class\.forName|getDeclaredMethod|getMethod\(|getDeclaredField|getField\(|getDeclaredMethods|findClass|hookMethod|setDuration|setInterpolator' /tmp/fluid-src/sources/dev/flexy/fluidmotion 2>/dev/null | sed -E 's#^/tmp/fluid-src/sources/##' | head -n 300 || true
             echo
             echo "## Method-selection predicates"
-            grep -RInE 'getName\\(|getParameterCount|getParameterTypes|getReturnType|isSynthetic|isBridge|Modifier|startsWith|endsWith|contains\\(' /tmp/fluid-src/sources/dev/flexy/fluidmotion/Refl.java /tmp/fluid-src/sources/dev/flexy/fluidmotion/UnlockFlyIn.java /tmp/fluid-src/sources/dev/flexy/fluidmotion/ShadeFlyIn.java 2>/dev/null | sed -E 's#^/tmp/fluid-src/sources/##' | head -n 220 || true
+            grep -RInE 'getName|getParameterCount|getParameterTypes|getReturnType|isSynthetic|isBridge|Modifier|startsWith|endsWith|contains' /tmp/fluid-src/sources/dev/flexy/fluidmotion/Refl.java /tmp/fluid-src/sources/dev/flexy/fluidmotion/UnlockFlyIn.java /tmp/fluid-src/sources/dev/flexy/fluidmotion/ShadeFlyIn.java 2>/dev/null | sed -E 's#^/tmp/fluid-src/sources/##' | head -n 220 || true
             echo
             echo "## Animation and preference identifiers"
             grep -RhoE '"[A-Za-z0-9_.-]*(unlock|shade|notification|quick|spring|duration|scale|fade|stagger|anchor|bounce|app)[A-Za-z0-9_.-]*"' /tmp/fluid-src/sources 2>/dev/null | sort -u | head -n 300 || true
