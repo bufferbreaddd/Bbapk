@@ -20,7 +20,7 @@ data class AnimationSpec(
 )
 
 object AnimationCatalog {
-    val experimentalHookIds = setOf("unlock_to_app", "unlock_to_home", "shade_open", "shade_close", "qs_expand", "qs_collapse")
+    val experimentalHookIds = setOf("unlock_to_app", "unlock_to_home", "shade_open", "shade_close", "qs_expand", "qs_collapse", "notification_appear")
 
     val defaults = listOf(
         AnimationSpec("unlock_to_home","Unlock → home","Lock screen"),
