@@ -39,7 +39,7 @@ class MainActivity : Activity() {
         content.addView(label("One UI 8.5 · animation studio", 14))
         status = label("18 transition profiles · settings are independent", 13)
         content.addView(status)
-        content.addView(label("App-unlock duration and Quick Settings panel motion have experimental reference-derived hooks. Other controls are saved and previewable but do not change One UI yet.", 13))
+        content.addView(label("App-unlock duration, shade motion and Quick Settings motion have experimental reference-derived hooks. Other controls are saved and previewable but do not change One UI yet.", 13))
         content.addView(label("PRESETS", 12, true))
         val presetRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         listOf("Stock", "Fluid", "Crisp", "Gentle").forEach { name ->
@@ -84,12 +84,15 @@ class MainActivity : Activity() {
         panel.addView(CheckBox(this).apply {
             text = when (spec.id) {
                 "unlock_to_app" -> "Enable experimental app-unlock duration hook"
-                "qs_expand" -> "Enable experimental Quick Settings transform"
+                "shade_open" -> "Enable experimental shade opening transform"
+                "shade_close" -> "Enable experimental shade closing transform"
+                "qs_expand" -> "Enable experimental Quick Settings expand transform"
+                "qs_collapse" -> "Enable experimental Quick Settings collapse transform"
                 else -> "Not hooked yet · preview/config only"
             }
             setTextColor(0xFFFFFFFF.toInt())
             isChecked = spec.enabled
-            isEnabled = spec.id == "unlock_to_app" || spec.id == "qs_expand"
+            isEnabled = spec.id in setOf("unlock_to_app", "shade_open", "shade_close", "qs_expand", "qs_collapse")
             setOnCheckedChangeListener { _, value -> spec.enabled = value }
         })
         panel.addView(seekControl("Duration", 2000, spec.durationMs, { v -> v.toString() + " ms" }) { spec.durationMs = it })
