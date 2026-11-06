@@ -272,15 +272,20 @@ class ColorUpEntry : IXposedHookLoadPackage {
             return
         }
         try {
-            val candidates = rowClass.declaredMethods.filter { method ->
-                val types = method.parameterTypes
-                method.name == "performRemoveAnimation" &&
-                    method.returnType == java.lang.Long.TYPE &&
-                    types.size >= 6 &&
-                    types[0] == java.lang.Long.TYPE &&
-                    types[1] == java.lang.Long.TYPE &&
-                    types[2] == java.lang.Float.TYPE
-            }
+            val candidates = generateSequence(rowClass) { it.superclass }
+                .flatMap { it.declaredMethods.asSequence() }
+                .filter { method ->
+                    val types = method.parameterTypes
+                    !Modifier.isAbstract(method.modifiers) &&
+                        method.name == "performRemoveAnimation" &&
+                        method.returnType == java.lang.Long.TYPE &&
+                        types.size >= 6 &&
+                        types[0] == java.lang.Long.TYPE &&
+                        types[1] == java.lang.Long.TYPE &&
+                        types[2] == java.lang.Float.TYPE
+                }
+                .distinctBy { it.toGenericString() }
+                .toList()
             if (candidates.isEmpty()) {
                 notificationDismissHookInstalled.set(false)
                 XposedBridge.log("ColorUp: notification dismiss unsupported; remove-animation method missing")
