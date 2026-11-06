@@ -57,6 +57,15 @@ class MainActivity : Activity() {
         fileRow.addView(Button(this).apply { text = "Export"; setOnClickListener { exportConfig() } }, LinearLayout.LayoutParams(0, -2, 1f))
         fileRow.addView(Button(this).apply { text = "Import"; setOnClickListener { importConfig() } }, LinearLayout.LayoutParams(0, -2, 1f))
         content.addView(fileRow)
+        content.addView(Button(this).apply {
+            text = "Disable all hooks & save"
+            setOnClickListener {
+                specs = AnimationCatalog.defaults.map { it.copy() }.toMutableList()
+                renderEditors()
+                saveConfig()
+                status.text = "All experimental system hooks disabled"
+            }
+        })
         editorContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         content.addView(editorContainer)
         renderEditors()
