@@ -2,6 +2,7 @@
 
 ## 0.7.0
 - Applied per-panel motion curves, spring response and direction anchors to shade and Quick Settings hooks.
+- Kept unlock-to-home preview-only after confirming FluidMotion's third CellLayout argument is a delay, not a duration.
 
 ## 0.6.0
 - Added guarded notification-row appearance animation.
