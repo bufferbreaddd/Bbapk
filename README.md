@@ -3,7 +3,7 @@
 A per-transition animation configuration studio for Samsung One UI, inspired by fluid ColorOS-style motion.
 
 **Compatibility target:** One UI 8.5, device-model agnostic by design. Actual support is determined by the installed hook runtime and the tested One UI build.  
-**App:** ColorUp · **Current preview:** 0.9.0
+**App:** ColorUp · **Current preview:** 0.10.0
 
 ## What works in this preview
 
@@ -14,14 +14,14 @@ A per-transition animation configuration studio for Samsung One UI, inspired by 
 - JSON import/export.
 - Read-only configuration provider restricted to SystemUI and Samsung Launcher callers, with live config refresh.
 - Experimental notification appearance animation for guarded notification-row insertions.
-- Experimental app-unlock duration hook, guarded by Samsung's keyguard controller call stack.
+- Experimental keyguard show/hide and app-unlock duration hooks, guarded by Samsung keyguard call stacks.
 - Experimental notification-shade open/close and Quick Settings expand/collapse scale/vertical-motion hooks, guarded by Samsung expansion callbacks and exact Compose root IDs.
 - Legacy Xposed entry point scoped to SystemUI and Samsung Launcher.
 - Root export to `/data/adb/colorup/config.json` for backup/inspection.
 
 ## Important: animation engine status
 
-**0.9.0 is an experimental preview, not a complete system animation engine.** Hooks can now affect app-unlock duration, notification-row appearance, notification-shade open/close and Quick Settings expand/collapse scale, vertical offset, curve, spring response and direction anchor. They are guarded by runtime class/callsite/resource checks, but have not yet been tested on a retail One UI 8.5 device. The remaining 11 transitions are editor/preview-only. See [hook status](docs/HOOK-STATUS.md) for exact boundaries and verification requirements.
+**0.10.0 is an experimental preview, not a complete system animation engine.** Hooks can now affect app-unlock duration, notification-row appearance, notification-shade open/close and Quick Settings expand/collapse scale, vertical offset, curve, spring response and direction anchor. They are guarded by runtime class/callsite/resource checks, but have not yet been tested on a retail One UI 8.5 device. The remaining 9 transitions are editor/preview-only. See [hook status](docs/HOOK-STATUS.md) for exact boundaries and verification requirements.
 
 The reference FluidMotion APK is analysed by a GitHub Actions workflow. Only a technical inventory of hook sites and setting identifiers is committed; decompiled source is not redistributed. See [the current inventory](docs/reference-analysis/FLUIDMOTION-HOOK-INVENTORY.md) and [hook status](docs/HOOK-STATUS.md).
 
