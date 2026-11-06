@@ -1,38 +1,59 @@
 package dev.colorup
 
 import android.app.Activity
-import android.os.Bundle
+import android.content.Intent
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
+import android.net.Uri
+import android.os.Bundle
 import android.view.View
+import android.view.animation.*
 import android.widget.*
 import java.io.DataOutputStream
-import java.util.Base64
 
 class MainActivity : Activity() {
-    private val specs = AnimationCatalog.defaults.map { it.copy() }.toMutableList()
+    private var specs = AnimationCatalog.defaults.map { it.copy() }.toMutableList()
     private lateinit var status: TextView
+    private lateinit var content: LinearLayout
+    private val prefs by lazy { getSharedPreferences("colorup", MODE_PRIVATE) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val saved = prefs.getString("config_json", null)
+        if (saved != null) runCatching { specs = ConfigCodec.decode(saved) }
         buildUi()
     }
 
     private fun buildUi() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(20, 24, 20, 20)
+            setPadding(18, 22, 18, 18)
             setBackgroundColor(0xFF10131A.toInt())
         }
         val scroll = ScrollView(this)
-        val content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         content.addView(label("ColorUp", 30, true))
-        content.addView(label("One UI 8.5 · independent animation studio", 14))
-        status = label("Editor ready · transition hooks are not active in this build", 13)
+        content.addView(label("One UI 8.5 · animation studio", 14))
+        status = label("18 transition profiles · settings are independent", 13)
         content.addView(status)
-        specs.groupBy { it.group }.forEach { (group, items) ->
-            content.addView(label(group.uppercase(), 13, true))
-            items.forEach { content.addView(editor(it)) }
+        content.addView(label("PRESETS", 12, true))
+        val presetRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        listOf("Stock", "Fluid", "Crisp", "Gentle").forEach { name ->
+            presetRow.addView(Button(this).apply {
+                text = name
+                setOnClickListener {
+                    specs = AnimationCatalog.preset(name)
+                    renderEditors()
+                    status.text = if (name == "Stock") "Stock settings restored" else "$name preset loaded · save to apply configuration"
+                }
+            }, LinearLayout.LayoutParams(0, -2, 1f))
         }
+        content.addView(presetRow)
+        val fileRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        fileRow.addView(Button(this).apply { text = "Export"; setOnClickListener { exportConfig() } }, LinearLayout.LayoutParams(0, -2, 1f))
+        fileRow.addView(Button(this).apply { text = "Import"; setOnClickListener { importConfig() } }, LinearLayout.LayoutParams(0, -2, 1f))
+        content.addView(fileRow)
+        renderEditors()
         content.addView(Button(this).apply {
             text = "Save configuration"
             setOnClickListener { saveConfig() }
@@ -40,6 +61,15 @@ class MainActivity : Activity() {
         scroll.addView(content)
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         setContentView(root)
+    }
+
+    private fun renderEditors() {
+        content.removeViews(4, (content.childCount - 4).coerceAtLeast(0))
+        specs.groupBy { it.group }.forEach { (group, items) ->
+            content.addView(label(group.uppercase(), 12, true))
+            items.forEach { content.addView(editor(it)) }
+        }
+        content.addView(Button(this).apply { text = "Save configuration"; setOnClickListener { saveConfig() } })
     }
 
     private fun editor(spec: AnimationSpec): View {
@@ -50,72 +80,104 @@ class MainActivity : Activity() {
         }
         panel.addView(label(spec.title, 17, true))
         panel.addView(CheckBox(this).apply {
-            text = "Enable (experimental)"
+            text = "Enable this transition"
             setTextColor(0xFFFFFFFF.toInt())
             isChecked = spec.enabled
             setOnCheckedChangeListener { _, value -> spec.enabled = value }
         })
         panel.addView(label("Duration: ${spec.durationMs} ms", 13))
-        panel.addView(SeekBar(this).apply {
-            max = 1000
-            progress = spec.durationMs
-            setOnSeekBarChangeListener(listener { spec.durationMs = it })
+        panel.addView(seek(2000, spec.durationMs) { spec.durationMs = it })
+        panel.addView(label("Motion curve", 13))
+        panel.addView(spinner(ConfigCodec.CURVES.toTypedArray(), spec.curve) { spec.curve = it })
+        panel.addView(label("Scale: ${"%.2f".format(spec.scale)}×", 13))
+        panel.addView(seek(200, (spec.scale * 100).toInt()) { spec.scale = it / 100f })
+        panel.addView(label("Fade: ${"%.2f".format(spec.fade)}", 13))
+        panel.addView(seek(100, (spec.fade * 100).toInt()) { spec.fade = it / 100f })
+        panel.addView(label("Vertical offset: ${spec.translateY} dp", 13))
+        panel.addView(seek(300, spec.translateY + 150) { spec.translateY = it - 150 })
+        panel.addView(label("Start delay: ${spec.delayMs} ms", 13))
+        panel.addView(seek(1000, spec.delayMs) { spec.delayMs = it })
+        panel.addView(label("Spring damping: ${"%.2f".format(spec.springDamping)}", 13))
+        panel.addView(seek(200, (spec.springDamping * 100).toInt()) { spec.springDamping = (it / 100f).coerceAtLeast(0.1f) })
+        panel.addView(label("Spring stiffness: ${spec.springStiffness.toInt()}", 13))
+        panel.addView(seek(1500, spec.springStiffness.toInt()) { spec.springStiffness = it.coerceAtLeast(50).toFloat() })
+        panel.addView(label("Direction / anchor", 13))
+        panel.addView(spinner(ConfigCodec.DIRECTIONS.toTypedArray(), spec.direction) { spec.direction = it })
+        val preview = View(this).apply {
+            background = GradientDrawable().apply {
+                cornerRadius = dp(18).toFloat()
+                setColor(0xFF78A9FF.toInt())
+            }
+            layoutParams = LinearLayout.LayoutParams(dp(52), dp(52)).apply { topMargin = dp(12); bottomMargin = dp(8) }
+        }
+        panel.addView(preview)
+        panel.addView(Button(this).apply {
+            text = "Preview motion"
+            setOnClickListener { runPreview(preview, spec) }
         })
-        panel.addView(label("Curve", 13))
-        val curves = arrayOf("STANDARD", "LINEAR", "EASE_IN", "EASE_OUT", "EASE_IN_OUT", "SPRING")
-        panel.addView(Spinner(this).apply {
-            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, curves)
-            setSelection(curves.indexOf(spec.curve).coerceAtLeast(0))
+        return panel.apply { layoutParams = LinearLayout.LayoutParams(-1, -2).also { it.bottomMargin = dp(12) } }
+    }
+
+    private fun seek(maxValue: Int, initial: Int, changed: (Int) -> Unit): SeekBar =
+        SeekBar(this).apply {
+            max = maxValue
+            progress = initial.coerceIn(0, maxValue)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(bar: SeekBar?, value: Int, fromUser: Boolean) { if (fromUser) changed(value) }
+                override fun onStartTrackingTouch(bar: SeekBar?) = Unit
+                override fun onStopTrackingTouch(bar: SeekBar?) = Unit
+            })
+        }
+
+    private fun spinner(items: Array<String>, selected: String, changed: (String) -> Unit) =
+        Spinner(this).apply {
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, items)
+            setSelection(items.indexOf(selected).coerceAtLeast(0))
             onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                 override fun onNothingSelected(parent: AdapterView<*>?) = Unit
-                override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                    spec.curve = curves[position]
-                }
+                override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) { changed(items[position]) }
             }
-        })
-        panel.addView(label("Scale: ${"%.2f".format(spec.scale)}", 13))
-        panel.addView(SeekBar(this).apply {
-            max = 200
-            progress = (spec.scale * 100).toInt()
-            setOnSeekBarChangeListener(listener { spec.scale = it / 100f })
-        })
-        panel.addView(label("Fade: ${"%.2f".format(spec.fade)}", 13))
-        panel.addView(SeekBar(this).apply {
-            max = 100
-            progress = (spec.fade * 100).toInt()
-            setOnSeekBarChangeListener(listener { spec.fade = it / 100f })
-        })
-        panel.addView(label("Vertical offset: ${spec.translateY} dp", 13))
-        panel.addView(SeekBar(this).apply {
-            max = 300
-            progress = spec.translateY + 150
-            setOnSeekBarChangeListener(listener { spec.translateY = it - 150 })
-        })
-        return panel.apply {
-            layoutParams = LinearLayout.LayoutParams(-1, -2).also { it.bottomMargin = 12 }
         }
-    }
 
-    private fun listener(change: (Int) -> Unit) = object : SeekBar.OnSeekBarChangeListener {
-        override fun onProgressChanged(bar: SeekBar?, value: Int, fromUser: Boolean) {
-            if (fromUser) change(value)
+    private fun runPreview(view: View, spec: AnimationSpec) {
+        view.animate().cancel()
+        view.translationX = 0f
+        view.translationY = 0f
+        view.scaleX = 1f
+        view.scaleY = 1f
+        view.alpha = 1f
+        val distance = dp(spec.translateY).toFloat()
+        val (x, y) = when (spec.direction) {
+            "DOWN" -> 0f to -distance
+            "LEFT" -> distance to 0f
+            "RIGHT" -> -distance to 0f
+            "CENTER" -> 0f to 0f
+            else -> 0f to distance
         }
-        override fun onStartTrackingTouch(bar: SeekBar?) = Unit
-        override fun onStopTrackingTouch(bar: SeekBar?) = Unit
-    }
-
-    private fun label(value: String, size: Int, bold: Boolean = false) = TextView(this).apply {
-        text = value
-        textSize = size.toFloat()
-        setTextColor(0xFFE7ECF4.toInt())
-        if (bold) typeface = Typeface.DEFAULT_BOLD
-        setPadding(0, 8, 0, 8)
+        val interpolator: android.view.animation.Interpolator = when (spec.curve) {
+            "LINEAR" -> LinearInterpolator()
+            "EASE_IN" -> AccelerateInterpolator()
+            "EASE_OUT" -> DecelerateInterpolator()
+            "EASE_IN_OUT", "STANDARD" -> AccelerateDecelerateInterpolator()
+            "SPRING" -> OvershootInterpolator((1.0f - spec.springDamping).coerceIn(0.1f, 1.2f))
+            else -> AccelerateDecelerateInterpolator()
+        }
+        view.translationX = x
+        view.translationY = y
+        view.scaleX = 0.75f
+        view.scaleY = 0.75f
+        view.alpha = 0f
+        view.animate().translationX(0f).translationY(0f).scaleX(spec.scale).scaleY(spec.scale)
+            .alpha(spec.fade).setStartDelay(spec.delayMs.toLong())
+            .setDuration(spec.durationMs.toLong()).setInterpolator(interpolator)
+            .withEndAction { view.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(120).start() }
+            .start()
     }
 
     private fun saveConfig() {
         val json = ConfigCodec.encode(specs)
-        getPreferences(MODE_PRIVATE).edit().putString("config", json).apply()
-        val encoded = Base64.getEncoder().encodeToString(json.toByteArray(Charsets.UTF_8))
+        prefs.edit().putString("config_json", json).putLong("updated_at", System.currentTimeMillis()).apply()
+        val encoded = android.util.Base64.encodeToString(json.toByteArray(Charsets.UTF_8), android.util.Base64.NO_WRAP)
         try {
             val process = Runtime.getRuntime().exec("su")
             DataOutputStream(process.outputStream).use { out ->
@@ -125,9 +187,61 @@ class MainActivity : Activity() {
                 out.flush()
             }
             val result = process.waitFor()
-            status.text = if (result == 0) "Config saved to /data/adb/colorup/config.json · hooks still inactive" else "Saved locally; root write failed (exit $result)"
+            status.text = if (result == 0) "Saved locally and exported to /data/adb/colorup/config.json" else "Saved locally · root export failed ($result)"
         } catch (e: Exception) {
-            status.text = "Saved locally; root access unavailable: ${e.javaClass.simpleName}"
+            status.text = "Saved locally · root unavailable, config export skipped"
         }
+    }
+
+    private fun exportConfig() {
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "application/json"
+            putExtra(Intent.EXTRA_TITLE, "colorup-config.json")
+        }
+        startActivityForResult(intent, REQUEST_EXPORT)
+    }
+
+    private fun importConfig() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "application/json"
+        }
+        startActivityForResult(intent, REQUEST_IMPORT)
+    }
+
+    @Deprecated("Activity result API retained for broad Android compatibility")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (resultCode != RESULT_OK) return
+        val uri = data?.data ?: return
+        try {
+            when (requestCode) {
+                REQUEST_EXPORT -> contentResolver.openOutputStream(uri)?.use { it.write(ConfigCodec.encode(specs).toByteArray(Charsets.UTF_8)) }
+                REQUEST_IMPORT -> {
+                    val json = contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } ?: error("Unable to read file")
+                    specs = ConfigCodec.decode(json)
+                    renderEditors()
+                    status.text = "Imported settings · save to keep them"
+                }
+            }
+        } catch (e: Exception) {
+            status.text = "File error: ${e.message ?: e.javaClass.simpleName}"
+        }
+    }
+
+    private fun label(value: String, size: Int, bold: Boolean = false) = TextView(this).apply {
+        text = value
+        textSize = size.toFloat()
+        setTextColor(0xFFE7ECF4.toInt())
+        if (bold) typeface = Typeface.DEFAULT_BOLD
+        setPadding(0, 7, 0, 7)
+    }
+
+    private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
+
+    companion object {
+        private const val REQUEST_EXPORT = 501
+        private const val REQUEST_IMPORT = 502
     }
 }
