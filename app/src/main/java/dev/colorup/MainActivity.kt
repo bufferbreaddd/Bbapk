@@ -95,6 +95,8 @@ class MainActivity : Activity() {
                 "unlock_to_app" -> "Enable experimental app-unlock duration hook"
                 "keyguard_show" -> "Enable experimental lock-screen show duration"
                 "keyguard_hide" -> "Enable experimental lock-screen hide duration"
+                "screen_on" -> "Enable experimental screen-on duration"
+                "screen_off" -> "Enable experimental screen-off duration"
                 "shade_open" -> "Enable experimental shade opening transform"
                 "shade_close" -> "Enable experimental shade closing transform"
                 "qs_expand" -> "Enable experimental Quick Settings expand transform"
