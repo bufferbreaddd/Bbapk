@@ -2,6 +2,16 @@
 
 Last reviewed against the repository's FluidMotion reference APK. This is a source-level status report, not proof of behavior on a retail One UI 8.5 build.
 
+## Experimental candidate: unlock to home duration
+
+- Config ID: `unlock_to_home`
+- Process: `com.sec.android.app.launcher`
+- Reference-derived class: `com.honeyspace.ui.common.CellLayout`
+- Method signature guard: exactly three parameters `(View, long, long)`.
+- The hook changes only the third long argument, and only when the first View is not yet attached to its window.
+- Duration range: 0–2000 ms.
+- Launcher also observes configuration updates, so saving settings refreshes the value without restarting the process.
+
 ## Experimental candidate: app-unlock duration
 
 - Config ID: `unlock_to_app`
@@ -9,7 +19,7 @@ Last reviewed against the repository's FluidMotion reference APK. This is a sour
 - Controller guard: `com.android.systemui.keyguard.KeyguardSecLegacyUnlockAnimationControllerImpl`
 - Hooked API: `android.animation.ValueAnimator.setDuration(long)`
 - Changes duration only when the call stack contains the exact controller class.
-- Range: 0–2000 ms.
+- Duration range: 0–2000 ms.
 - The controller class is checked before installing the hook.
 
 ## Experimental candidates: shade and Quick Settings motion
@@ -35,23 +45,23 @@ The class names and hook layout are derived from FluidMotion's reference APK; th
 
 ## Preview/configuration-only transitions
 
-The remaining 13 IDs have independent configuration and in-app preview controls, but no system hook is installed for them yet. Their enable switches are intentionally unavailable in the UI. Their values remain importable/exportable and can be previewed inside ColorUp.
+The remaining 12 IDs have independent configuration and in-app preview controls, but no system hook is installed for them yet. Their enable switches are intentionally unavailable in the UI. Their values remain importable/exportable and can be previewed inside ColorUp.
 
 ## Configuration bridge
 
 - Provider URI: `content://dev.colorup.config/config`
 - Read-only provider; caller package and UID are checked.
-- SystemUI registers a content observer and refreshes in-memory settings after ColorUp saves.
+- SystemUI and Launcher register content observers and refresh in-memory settings after ColorUp saves.
 - The app records a runtime heartbeat when a scoped process successfully queries the provider.
 
 ## Verification still required
 
 1. Build the APK in GitHub Actions.
-2. Load it with a compatible legacy Xposed API runtime and scope SystemUI.
+2. Load it with a compatible legacy Xposed API runtime and scope SystemUI and Samsung Launcher.
 3. Confirm the runtime heartbeat appears in ColorUp.
 4. Enable one experimental transition at a time and save.
-5. Test app-unlock duration, shade open/close and Quick Settings expand/collapse separately.
-6. Confirm unrelated SystemUI animations remain unchanged.
+5. Test unlock-to-home duration, app-unlock duration, shade open/close and Quick Settings expand/collapse separately.
+6. Confirm unrelated animations remain unchanged.
 7. Disable each setting and save; verify stock behavior returns.
 8. Test on the exact One UI build and record the build fingerprint.
 
