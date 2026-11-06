@@ -98,6 +98,7 @@ class MainActivity : Activity() {
                 "shade_close" -> "Enable experimental shade closing transform"
                 "qs_expand" -> "Enable experimental Quick Settings expand transform"
                 "qs_collapse" -> "Enable experimental Quick Settings collapse transform"
+                "notification_appear" -> "Enable experimental notification appearance"
                 else -> "Not hooked yet · preview/config only"
             }
             setTextColor(0xFFFFFFFF.toInt())
