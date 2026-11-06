@@ -43,6 +43,9 @@ jobs:
             echo "## Hook registration sites"
             grep -RInE 'findAndHook(Method|Constructor)|hookAllMethods|hookMethod' /tmp/fluid-src/sources 2>/dev/null | sed -E 's#^/tmp/fluid-src/sources/##' | sed -E 's/:[0-9]+:/ : /' | head -n 250 || true
             echo
+            echo "## Target class constants"
+            grep -RInE '(COMPOSE|CONTROLLER|CELL_LAYOUT)[[:space:]]*=' /tmp/fluid-src/sources/dev/flexy/fluidmotion 2>/dev/null | sed -E 's#^/tmp/fluid-src/sources/##' | head -n 120 || true
+            echo
             echo "## Reflected classes, methods and fields"
             grep -RInE 'Class\.forName|getDeclaredMethod|getMethod\(|getDeclaredField|getField\(|getDeclaredMethods|findClass|hookMethod|setDuration|setInterpolator' /tmp/fluid-src/sources/dev/flexy/fluidmotion 2>/dev/null | sed -E 's#^/tmp/fluid-src/sources/##' | head -n 300 || true
             echo
