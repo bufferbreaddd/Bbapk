@@ -65,8 +65,8 @@ class ColorUpEntry : IXposedHookLoadPackage {
                     override fun afterHookedMethod(param: MethodHookParam) {
                         val context = param.args[0] as? Context ?: return
                         refreshConfig(context, pkg)
+                        installConfigObserver(context, pkg)
                         if (pkg == "com.android.systemui") {
-                            installConfigObserver(context, pkg)
                             installAppUnlockDurationHook(lpparam)
                             installPanelExpansionHooks(lpparam)
                         } else {
