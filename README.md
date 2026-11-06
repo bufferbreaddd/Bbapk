@@ -31,7 +31,7 @@ Open the repository in Android Studio with JDK 17 and Android SDK 36, then build
 
 ## Install/runtime notes
 
-See [the install and recovery guide](docs/INSTALL.md) for enabling the module, first test and rollback.
+See [the install and recovery guide](docs/INSTALL.md) for enabling the module, first test and rollback. Use the [One UI 8.5 device test plan](docs/TEST-PLAN.md) before treating the preview as stable.
 
 
 The APK is a normal launcher app and a legacy Xposed-compatible module (API 82). Vector's upstream project documents support for both legacy Xposed modules and modern libxposed modules, so ColorUp's legacy entry point is compatible in principle. It still needs to be enabled in the framework manager and scoped to the target processes. Root by itself is not enough. The current hook scope is:
