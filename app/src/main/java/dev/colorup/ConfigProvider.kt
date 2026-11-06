@@ -13,9 +13,12 @@ class ConfigProvider : ContentProvider() {
 
     override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor {
         val allowed = setOf("com.android.systemui", "com.sec.android.app.launcher", "dev.colorup")
-        val packages = context?.packageManager?.getPackagesForUid(Binder.getCallingUid())?.toSet().orEmpty()
-        val caller = packages.firstOrNull { it in allowed }
-            ?: throw SecurityException("Caller is outside ColorUp's allowlist")
+        val caller = callingPackage
+            ?: throw SecurityException("Caller identity was not supplied")
+        if (caller !in allowed) throw SecurityException("Caller is outside ColorUp's allowlist")
+        val callerUid = context?.packageManager?.getPackageUid(caller, 0)
+            ?: throw SecurityException("Caller package is unavailable")
+        if (callerUid != Binder.getCallingUid()) throw SecurityException("Caller UID mismatch")
         if (uri.path != "/config") throw IllegalArgumentException("Unknown config endpoint")
         val preferences = context?.getSharedPreferences("colorup", android.content.Context.MODE_PRIVATE)
         if (caller != "dev.colorup") {
