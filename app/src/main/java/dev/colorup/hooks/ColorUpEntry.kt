@@ -22,20 +22,25 @@ import java.util.concurrent.atomic.AtomicReference
  * Legacy Xposed runtime.
  *
  * Experimental reference-derived hooks:
- * - app-unlock duration: ValueAnimator.setDuration from Samsung's keyguard controller
- * - Quick Settings expansion: transform only the Compose view inside the named QS root
+ * - app-unlock duration, guarded by Samsung's keyguard controller call stack
+ * - notification shade and Quick Settings canvas transforms, guarded by
+ *   Samsung expansion callbacks and their exact Compose root resource IDs
  *
- * Both are disabled by default and guarded by runtime class/resource checks.
+ * All are disabled by default. Missing targets result in no hook or no-op.
  */
 class ColorUpEntry : IXposedHookLoadPackage {
     private data class AppUnlockConfig(val enabled: Boolean, val durationMs: Long)
-    private data class QuickSettingsConfig(val enabled: Boolean, val scale: Float, val translateY: Int)
+    private data class PanelConfig(val enabled: Boolean, val scale: Float, val translateY: Int)
 
     private val appUnlockConfig = AtomicReference<AppUnlockConfig?>(null)
-    private val quickSettingsConfig = AtomicReference<QuickSettingsConfig?>(null)
-    private val quickSettingsProgress = AtomicReference(0f)
+    private val shadeOpenConfig = AtomicReference<PanelConfig?>(null)
+    private val shadeCloseConfig = AtomicReference<PanelConfig?>(null)
+    private val qsExpandConfig = AtomicReference<PanelConfig?>(null)
+    private val qsCollapseConfig = AtomicReference<PanelConfig?>(null)
+    private val panelProgress = AtomicReference(0f)
+    private val panelExpanding = AtomicBoolean(true)
     private val appUnlockHookInstalled = AtomicBoolean(false)
-    private val quickSettingsHooksInstalled = AtomicBoolean(false)
+    private val panelHooksInstalled = AtomicBoolean(false)
     private var configObserver: ContentObserver? = null
 
     private val configUri = Uri.parse("content://dev.colorup.config/config")
@@ -59,7 +64,7 @@ class ColorUpEntry : IXposedHookLoadPackage {
                         if (pkg == "com.android.systemui") {
                             installConfigObserver(context, pkg)
                             installAppUnlockDurationHook(lpparam)
-                            installQuickSettingsExpansionHooks(lpparam)
+                            installPanelExpansionHooks(lpparam)
                         }
                     }
                 }
@@ -84,26 +89,28 @@ class ColorUpEntry : IXposedHookLoadPackage {
 
     private fun refreshConfig(context: Context, pkg: String) {
         val root = readConfig(context, pkg) ?: return
-        val appItem = findAnimation(root, "unlock_to_app")
-        appUnlockConfig.set(appItem?.let {
-            AppUnlockConfig(
-                enabled = it.optBoolean("enabled", false),
-                durationMs = it.optInt("durationMs", 320).coerceIn(0, 2000).toLong()
-            )
+        appUnlockConfig.set(findAnimation(root, "unlock_to_app")?.let {
+            AppUnlockConfig(it.optBoolean("enabled", false), it.optInt("durationMs", 320).coerceIn(0, 2000).toLong())
         })
-        val qsItem = findAnimation(root, "qs_expand")
-        quickSettingsConfig.set(qsItem?.let {
-            QuickSettingsConfig(
+        shadeOpenConfig.set(panelConfig(root, "shade_open"))
+        shadeCloseConfig.set(panelConfig(root, "shade_close"))
+        qsExpandConfig.set(panelConfig(root, "qs_expand"))
+        qsCollapseConfig.set(panelConfig(root, "qs_collapse"))
+        XposedBridge.log(
+            "ColorUp: config refreshed; appUnlock=" + (appUnlockConfig.get()?.enabled == true) +
+                ", shade=" + (shadeOpenConfig.get()?.enabled == true || shadeCloseConfig.get()?.enabled == true) +
+                ", quickSettings=" + (qsExpandConfig.get()?.enabled == true || qsCollapseConfig.get()?.enabled == true)
+        )
+    }
+
+    private fun panelConfig(root: JSONObject, id: String): PanelConfig? =
+        findAnimation(root, id)?.let {
+            PanelConfig(
                 enabled = it.optBoolean("enabled", false),
                 scale = it.optDouble("scale", 1.0).toFloat().coerceIn(0.5f, 1.5f),
                 translateY = it.optInt("translateY", 24).coerceIn(-150, 150)
             )
-        })
-        XposedBridge.log(
-            "ColorUp: config refreshed; appUnlock=" + (appUnlockConfig.get()?.enabled == true) +
-                ", quickSettings=" + (quickSettingsConfig.get()?.enabled == true)
-        )
-    }
+        }
 
     private fun installConfigObserver(context: Context, pkg: String) {
         try {
@@ -139,27 +146,29 @@ class ColorUpEntry : IXposedHookLoadPackage {
                     }
                 }
             )
-            XposedBridge.log("ColorUp: app-unlock duration hook installed; waiting for enabled config")
+            XposedBridge.log("ColorUp: app-unlock duration hook installed")
         } catch (error: Throwable) {
             appUnlockHookInstalled.set(false)
             XposedBridge.log("ColorUp: app-unlock duration hook unavailable: " + error)
         }
     }
 
-    private fun installQuickSettingsExpansionHooks(lpparam: XC_LoadPackage.LoadPackageParam) {
-        if (!quickSettingsHooksInstalled.compareAndSet(false, true)) return
+    private fun installPanelExpansionHooks(lpparam: XC_LoadPackage.LoadPackageParam) {
+        if (!panelHooksInstalled.compareAndSet(false, true)) return
         val splitClass = XposedHelpers.findClassIfExists(splitHelperClass, lpparam.classLoader)
         val composeClass = XposedHelpers.findClassIfExists(composeViewClass, lpparam.classLoader)
         if (splitClass == null || composeClass == null) {
-            quickSettingsHooksInstalled.set(false)
-            XposedBridge.log("ColorUp: Quick Settings hook unsupported; required Compose/SystemUI class missing")
+            panelHooksInstalled.set(false)
+            XposedBridge.log("ColorUp: panel hooks unsupported; required SystemUI/Compose class missing")
             return
         }
         try {
             val expansionCallback = object : XC_MethodHook() {
                 override fun afterHookedMethod(param: MethodHookParam) {
                     val fraction = param.args.firstOrNull { it is Float } as? Float ?: return
-                    quickSettingsProgress.set(fraction.coerceIn(0f, 1f))
+                    val bounded = fraction.coerceIn(0f, 1f)
+                    val previous = panelProgress.getAndSet(bounded)
+                    panelExpanding.set(bounded >= previous)
                 }
             }
             val splitHooks = XposedBridge.hookAllMethods(splitClass, "onPanelExpansionChanged", expansionCallback)
@@ -168,8 +177,8 @@ class ColorUpEntry : IXposedHookLoadPackage {
                 XposedBridge.hookAllMethods(depthClass, "onPanelExpansionChanged", expansionCallback)
             } else emptySet()
             if (splitHooks.isEmpty() && depthHooks.isEmpty()) {
-                quickSettingsHooksInstalled.set(false)
-                XposedBridge.log("ColorUp: Quick Settings hook unsupported; no expansion callback found")
+                panelHooksInstalled.set(false)
+                XposedBridge.log("ColorUp: panel hooks unsupported; no expansion callback found")
                 return
             }
 
@@ -179,13 +188,18 @@ class ColorUpEntry : IXposedHookLoadPackage {
                 Canvas::class.java,
                 object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam) {
-                        val config = quickSettingsConfig.get() ?: return
-                        if (!config.enabled) return
                         val view = param.thisObject as? View ?: return
-                        if (!isQuickSettingsRoot(view)) return
-                        val canvas = param.args.firstOrNull { it is Canvas } as? Canvas ?: return
-                        val progress = quickSettingsProgress.get()
+                        val progress = panelProgress.get()
                         if (progress <= 0f) return
+                        val config = when {
+                            isInsideNamedRoot(view, "sec_quick_panel_compose_root") ->
+                                if (panelExpanding.get()) qsExpandConfig.get() else qsCollapseConfig.get()
+                            isInsideNamedRoot(view, "shadeRootView") ->
+                                if (panelExpanding.get()) shadeOpenConfig.get() else shadeCloseConfig.get()
+                            else -> null
+                        } ?: return
+                        if (!config.enabled) return
+                        val canvas = param.args.firstOrNull { it is Canvas } as? Canvas ?: return
                         val scale = config.scale + (1f - config.scale) * progress
                         val offsetPx = config.translateY * view.resources.displayMetrics.density * (1f - progress)
                         val saveCount = canvas.save()
@@ -201,14 +215,14 @@ class ColorUpEntry : IXposedHookLoadPackage {
                     }
                 }
             )
-            XposedBridge.log("ColorUp: Quick Settings expansion hooks installed (split=" + splitHooks.size + ", depth=" + depthHooks.size + ")")
+            XposedBridge.log("ColorUp: panel expansion hooks installed (split=" + splitHooks.size + ", depth=" + depthHooks.size + ")")
         } catch (error: Throwable) {
-            quickSettingsHooksInstalled.set(false)
-            XposedBridge.log("ColorUp: Quick Settings hook unavailable: " + error)
+            panelHooksInstalled.set(false)
+            XposedBridge.log("ColorUp: panel hook unavailable: " + error)
         }
     }
 
-    private fun isQuickSettingsRoot(view: View): Boolean {
+    private fun isInsideNamedRoot(view: View, targetName: String): Boolean {
         var current: View? = view
         var depth = 0
         while (current != null && depth++ < 10) {
@@ -216,7 +230,7 @@ class ColorUpEntry : IXposedHookLoadPackage {
             val id = candidate.id
             if (id != View.NO_ID) {
                 val entryName = runCatching { candidate.resources.getResourceEntryName(id) }.getOrNull()
-                if (entryName == "sec_quick_panel_compose_root") return true
+                if (entryName == targetName) return true
             }
             current = candidate.parent as? View
         }
