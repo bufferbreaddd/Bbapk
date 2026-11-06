@@ -9,7 +9,6 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.view.View
-import android.view.ViewParent
 import de.robv.android.xposed.IXposedHookLoadPackage
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
@@ -207,12 +206,13 @@ class ColorUpEntry : IXposedHookLoadPackage {
         var current: View? = view
         var depth = 0
         while (current != null && depth++ < 10) {
-            val id = current.id
+            val candidate = current
+            val id = candidate.id
             if (id != View.NO_ID) {
-                val entryName = runCatching { current.resources.getResourceEntryName(id) }.getOrNull()
+                val entryName = runCatching { candidate.resources.getResourceEntryName(id) }.getOrNull()
                 if (entryName == "sec_quick_panel_compose_root") return true
             }
-            current = current.parent as? View
+            current = candidate.parent as? View
         }
         return false
     }
