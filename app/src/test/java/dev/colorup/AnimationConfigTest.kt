@@ -47,8 +47,8 @@ class AnimationConfigTest {
 
     @Test
     fun importedValuesAreClampedAndUnknownIdsIgnored() {
-        val json = """{"schemaVersion":2,"animations":[{"id":"unlock_to_home","enabled":true,"durationMs":9000,"scale":9.0,"fade":-2.0,"translateY":999,"delayMs":-1,"curve":"NOT_A_CURVE","direction":"SIDEWAYS"},{"id":"not_real","enabled":true}]}"""
-        val item = ConfigCodec.decode(json).first()
+        val json = """{"schemaVersion":2,"animations":[{"id":"keyguard_show","enabled":true,"durationMs":9000,"scale":9.0,"fade":-2.0,"translateY":999,"delayMs":-1,"curve":"NOT_A_CURVE","direction":"SIDEWAYS"},{"id":"not_real","enabled":true}]}"""
+        val item = ConfigCodec.decode(json).first { it.id == "keyguard_show" }
         assertEquals(2000, item.durationMs)
         assertEquals(2f, item.scale)
         assertEquals(0f, item.fade)
