@@ -26,6 +26,7 @@ class AnimationConfigTest {
         assertTrue(fluid.first { it.id == "qs_expand" }.enabled)
         assertTrue(fluid.first { it.id == "qs_collapse" }.enabled)
         assertTrue(fluid.first { it.id == "notification_appear" }.enabled)
+        assertTrue(fluid.first { it.id == "notification_dismiss" }.enabled)
         val implemented = AnimationCatalog.experimentalHookIds
         assertTrue(fluid.filter { it.id !in implemented }.none { it.enabled })
         fluid.first().durationMs = 999
