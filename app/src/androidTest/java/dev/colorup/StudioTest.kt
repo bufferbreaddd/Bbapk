@@ -23,7 +23,7 @@ class StudioTest {
     @Test fun editingSurvivesRecreationAndSaveReachesStoredConfig() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             onView(withId(R.id.nav_motion)).perform(click())
-            onView(withText("Unlock → app")).perform(click())
+            onView(withText("Unlock → app")).perform(scrollTo(), click())
             onView(withTagValue(`is`("duration_slider" as Any))).perform(scrollTo(), swipeRight())
             scenario.recreate()
             onView(withText("Unlock → app")).check(matches(isDisplayed()))
@@ -39,15 +39,15 @@ class StudioTest {
     @Test fun setupExplainsActualScopeAndPendingLauncherSupport() {
         ActivityScenario.launch(MainActivity::class.java).use {
             onView(withId(R.id.nav_setup)).perform(click())
-            onView(withText("System UI")).check(matches(isDisplayed()))
-            onView(withText("com.android.systemui")).check(matches(isDisplayed()))
+            onView(withText("System UI")).perform(scrollTo()).check(matches(isDisplayed()))
+            onView(withText("com.android.systemui")).perform(scrollTo()).check(matches(isDisplayed()))
         }
     }
 
     @Test fun pendingTransitionsCannotEnableSystemHooks() {
         ActivityScenario.launch(MainActivity::class.java).use {
             onView(withId(R.id.nav_motion)).perform(click())
-            onView(withText("Unlock → home")).perform(click())
+            onView(withText("Unlock → home")).perform(scrollTo(), click())
             onView(withTagValue(`is`("enable_transition" as Any))).check(matches(isNotEnabled()))
             onView(withText("Preview only")).check(matches(isDisplayed()))
         }
