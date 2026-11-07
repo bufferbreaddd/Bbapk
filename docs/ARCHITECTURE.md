@@ -1,21 +1,40 @@
-# ColorUp architecture
+# ColorUp v2 architecture
 
-## Configuration
+## App
 
-The app stores a versioned JSON snapshot at `/data/adb/colorup/config.json`. Every transition has a stable ID and independent values for enable, duration, curve, scale, fade and vertical offset. Unknown IDs and invalid values must be ignored by future hook implementations.
+Kotlin Android Views with AppCompat and Material 3; DynamicColors applies wallpaper
+colours where supported. `MainActivity` owns navigation, focused editors and drafts;
+`StudioViews` draws motion/curve previews. `HookCapabilities` documents live fields.
 
-## Runtime ownership
+`config_json` is the saved runtime snapshot in private `colorup` preferences.
+`draft_json` retains unsaved changes without exposing them to system hooks. Drafts
+also survive activity recreation. The explicit Save action serializes schema 2 and
+notifies `content://dev.colorup.config/config`. Disable-all immediately saves all
+enables off and keeps per-transition values. File operations use a background worker.
 
-- SystemUI: shade, Quick Settings, keyguard and notification transitions.
-- Samsung Launcher: home, app/task and recents transitions where Launcher owns them.
-- Framework/window manager: screen and task transitions where the platform owns them.
+## Config/runtime
 
-A control is only marked supported after its owning method and behavior have been verified on the current One UI build.
+`ConfigCodec` accepts legacy schema 1/missing-version backups and schema 2, rejects
+future versions and files over 256 KB, ignores unknown IDs and clamps numeric values.
+Encoding normalizes all 18 known IDs and invalid enums/nonfinite numeric fields.
+`MotionMath` is shared by previews, notification interpolation and gesture transforms.
+Spring curves normalize their resting endpoint to one.
 
-## Hook policy
+`ConfigProvider` allows only the verified calling package/UID for SystemUI or ColorUp
+itself. Public mutation APIs are rejected. SystemUI queries internally record the
+last connection, runtime version and registered candidate IDs for diagnostics.
+A connection is not evidence of animation invocation.
 
-1. Identify the owning process and method on the exact build.
-2. Verify invocation timing and parameter semantics.
-3. Implement a narrow hook with bounds and disabled-by-default configuration.
-4. Test enable/disable, repeated transitions, rotation, multi-window, accessibility and low-memory behavior.
-5. Keep a kill switch and fall back to stock behavior on invalid configuration.
+The legacy Xposed entry only bootstraps in `com.android.systemui`. Config reads and
+change observation use a dedicated worker; UI/draw callbacks read in-memory atomics.
+Invalid/unavailable configuration clears enables. Hooks are installed once with
+runtime class/method guards, and missing targets leave stock behavior intact.
+Disabled duration hooks avoid stack walking. Disabled panel hooks avoid resource
+ancestry lookups. Gesture motion does not replace Samsung gesture timing.
+
+## Scope and compatibility
+
+Legacy metadata `xposedscope` references `@array/xposed_scope`, containing SystemUI.
+The pre-existing scope list mirrors it. No active Launcher/system_server hook exists.
+Method registration, class detection and a config heartbeat are distinct from proof
+of interception on the exact Samsung firmware. See HOOK-STATUS and TEST-PLAN.

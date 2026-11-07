@@ -1,49 +1,73 @@
-# ColorUp
+# ColorUp 2
 
-A per-transition animation configuration studio for Samsung One UI, inspired by fluid ColorOS-style motion.
+An independent motion editor and experimental Xposed module for Samsung One UI.
+**Device target:** Galaxy A35 5G / One UI 8.5. **App version:** 2.0.0 (20).
+Exact reported firmware: `SM-A356B`, `BP4A.251205.006.A356BXXSCDZH1` (Android 16).
+See [device target](docs/DEVICE-TARGET.md) for the validation boundary.
+The package ID remains `dev.colorup`; existing configuration is migrated in place.
 
-**Compatibility target:** One UI 8.5, device-model agnostic by design. Actual support is determined by the installed hook runtime and the tested One UI build.  
-**App:** ColorUp · **Current release candidate:** 1.0.0-rc1
+## Version 2
 
-## What works in this preview
+- Material 3 interface, wallpaper-derived Material You colours, system/light/dark themes.
+- Overview, searchable categorized Motion library, Presets, and Setup tabs.
+- A focused editor for each of 18 independent transition profiles, with sliders,
+  curves, spring settings, anchor selection, curve graph and motion preview.
+- Explicit support labels: duration-only, gesture-driven, full notification motion,
+  or preview-only. Controls are never represented as live features without hooks.
+- Draft preservation across navigation, rotation and app restarts; explicit Save.
+- Immediate disable-all keeps your tuning and returns enabled hooks to stock.
+- JSON backup/import, bounded to 256 KB; invalid/future versions are rejected.
+- Correct **legacy Xposed scope metadata** recommending **SystemUI only**.
+- Setup instructions, last connection, installed hook candidates, runtime version,
+  and copyable device/build diagnostics.
+- Save no longer runs a blocking root shell. A restricted content provider supplies
+  configuration and notifies the runtime. File backup uses the Android picker.
 
-- 18 individually stored transition profiles across lock screen, power, apps/tasks, SystemUI and notifications.
-- Independent enable, duration, curve, scale, fade, vertical offset, delay, spring damping, spring stiffness and direction values.
-- Fluid, Crisp, Gentle and Stock starting presets.
-- In-app motion preview for editing values.
-- JSON import/export.
-- Read-only configuration provider restricted to SystemUI and Samsung Launcher callers, with live config refresh.
-- Experimental notification appearance animation for guarded notification-row insertions.
-- Experimental screen on/off, keyguard show/hide and app-unlock duration hooks, guarded by Samsung keyguard call stacks.
-- Experimental notification-shade open/close and Quick Settings expand/collapse scale/vertical-motion hooks, guarded by Samsung expansion callbacks and exact Compose root IDs.
-- Legacy Xposed entry point scoped to SystemUI and Samsung Launcher.
-- Root export to `/data/adb/colorup/config.json` for backup/inspection.
+## Actual engine coverage
 
-## Important: animation engine status
+There are **11 experimental transition candidates**, not 18 verified Samsung hooks:
 
-**1.0.0-rc1 is the first functional release candidate, not a fully validated stable release.** It has 11 guarded experimental transition hooks; 7 other catalogued transitions remain preview/configuration-only. Hooks can now affect app-unlock duration, notification-row appearance, notification-shade open/close and Quick Settings expand/collapse scale, vertical offset, curve, spring response and direction anchor. They are guarded by runtime class/callsite/resource checks, but have not yet been tested on a retail One UI 8.5 device. The remaining 7 transitions are editor/preview-only. On-device testing on One UI 8.5 is still required before calling the hooks stable. See [hook status](docs/HOOK-STATUS.md) for exact boundaries and verification requirements.
+| Transitions | Runtime controls |
+| --- | --- |
+| Unlock to app, keyguard show/hide, screen on/off, notification dismiss | Duration |
+| Shade open/close, Quick Settings expand/collapse | Scale, vertical offset, easing/spring and scale anchor; follows panel progress |
+| Notification appearance | Duration, delay, scale, fade, vertical offset, easing/spring and anchor |
+| Unlock to home, app launch/close, home return, recents open/close, notification expansion | Preview/configuration only |
 
-The reference FluidMotion APK is analysed by a GitHub Actions workflow. Only a technical inventory of hook sites and setting identifiers is committed; decompiled source is not redistributed. See [the current inventory](docs/reference-analysis/FLUIDMOTION-HOOK-INVENTORY.md) and [hook status](docs/HOOK-STATUS.md).
+All hooks default off. Missing classes/methods safely leave candidates unavailable.
+An installed candidate or a successful config connection **does not verify that a
+Samsung animation invokes that candidate on a particular firmware**. No retail
+Galaxy A35 5G test has been performed for this release. Exact build diagnostics and
+on-device tests remain necessary for engine validation. See [hook status](docs/HOOK-STATUS.md).
 
-## Build
+## Enable the module
 
-Open the repository in Android Studio with JDK 17 and Android SDK 36, then build the `app` module. GitHub Actions runs the Android build and publishes a `ColorUp-debug` artifact from successful runs.
+1. Install the APK and open ColorUp once.
+2. Enable ColorUp in LSPosed/Vector, with **System UI (`com.android.systemui`)** scoped.
+3. Reboot after installation, updates or scope changes.
+4. Open Setup to inspect the last connection and installed candidates.
+5. Enable one experimental transition or load a preset, then **Save changes**.
 
-## Install/runtime notes
+Samsung One UI Home (`com.sec.android.app.launcher`) and Android System Framework
+are not required: there are no implemented hooks for those processes in this release.
+The manager controls scope; ColorUp cannot silently grant it to itself.
 
-See [the install and recovery guide](docs/INSTALL.md) for enabling the module, first test and rollback. Use the [One UI 8.5 device test plan](docs/TEST-PLAN.md) before treating the preview as stable.
+See [installation/recovery](docs/INSTALL.md) and [device testing](docs/TEST-PLAN.md).
 
+## Build and verify
 
-The APK is a normal launcher app and a legacy Xposed-compatible module (API 82). Vector's upstream project documents support for both legacy Xposed modules and modern libxposed modules, so ColorUp's legacy entry point is compatible in principle. It still needs to be enabled in the framework manager and scoped to the target processes. Root by itself is not enough. The current hook scope is:
-- `com.android.systemui`
-- `com.sec.android.app.launcher`
+JDK 17, Android SDK 36 and Build Tools 36.0.0:
 
-The module is intentionally detection/config-bridge only until exact One UI method signatures are verified. Do not expect animation changes from this preview.
+```sh
+./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+./gradlew :app:connectedDebugAndroidTest
+```
 
-## Safety and development rules
+The second command requires an Android emulator or connected device and tests the
+app UI, not Samsung/Xposed hook behavior. The debug APK is written to
+`app/build/outputs/apk/debug/app-debug.apk`. GitHub Actions publishes build artifacts
+for main and pull requests. Preserve your existing signing key for in-place updates;
+a separately signed debug APK may require backup and reinstall.
 
-- All transition toggles default off.
-- Imported values are clamped to safe ranges and unknown transition IDs are ignored.
-- The provider is read-only and checks the caller package allowlist.
-- No unverified method hooks, system APK patches or boot-image changes are applied.
-- Keep stock behavior as the fallback and provide a reliable disable/recovery route.
+The repository includes a FluidMotion reference APK and technical hook inventory;
+decompiled reference source is not redistributed.

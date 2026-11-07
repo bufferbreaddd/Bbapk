@@ -6,6 +6,7 @@ import android.content.Context
 import android.database.ContentObserver
 import android.graphics.Canvas
 import android.net.Uri
+import android.os.HandlerThread
 import android.os.Handler
 import android.os.Looper
 import android.view.View
@@ -21,6 +22,10 @@ import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import de.robv.android.xposed.callbacks.XC_LoadPackage
 import org.json.JSONObject
+import dev.colorup.AnimationCatalog
+import dev.colorup.BuildConfig
+import dev.colorup.ConfigCodec
+import dev.colorup.MotionMath
 import java.lang.reflect.Modifier
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -61,6 +66,8 @@ class ColorUpEntry : IXposedHookLoadPackage {
     private val notificationHookInstalled = AtomicBoolean(false)
     private val notificationDismissHookInstalled = AtomicBoolean(false)
     private var configObserver: ContentObserver? = null
+    private val configWorker by lazy { Handler(HandlerThread("ColorUp-config").apply { start() }.looper) }
+    private val installedIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     private val configUri = Uri.parse("content://dev.colorup.config/config")
     private val appUnlockClass = "com.android.systemui.keyguard.KeyguardSecLegacyUnlockAnimationControllerImpl"
@@ -73,7 +80,7 @@ class ColorUpEntry : IXposedHookLoadPackage {
 
     override fun handleLoadPackage(lpparam: XC_LoadPackage.LoadPackageParam) {
         val pkg = lpparam.packageName
-        if (pkg != "com.android.systemui" && pkg != "com.sec.android.app.launcher") return
+        if (pkg != "com.android.systemui") return
         try {
             XposedHelpers.findAndHookMethod(
                 Application::class.java,
@@ -82,13 +89,15 @@ class ColorUpEntry : IXposedHookLoadPackage {
                 object : XC_MethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) {
                         val context = param.args[0] as? Context ?: return
-                        refreshConfig(context, pkg)
-                        installConfigObserver(context, pkg)
                         if (pkg == "com.android.systemui") {
                             installAppUnlockDurationHook(lpparam)
                             installPanelExpansionHooks(lpparam)
                             installNotificationAppearHook(lpparam)
                             installNotificationDismissDurationHook(lpparam)
+                        }
+                        configWorker.post {
+                            installConfigObserver(context, pkg)
+                            refreshConfig(context, pkg)
                         }
                     }
                 }
@@ -100,10 +109,12 @@ class ColorUpEntry : IXposedHookLoadPackage {
 
     private fun readConfig(context: Context, pkg: String): JSONObject? {
         return try {
-            context.contentResolver.query(configUri, arrayOf("json"), null, null, null)?.use { cursor ->
+            context.contentResolver.query(configUri.buildUpon()
+                .appendQueryParameter("installed", installedIds.sorted().joinToString(","))
+                .appendQueryParameter("version", BuildConfig.VERSION_NAME).build(), arrayOf("json"), null, null, null)?.use { cursor ->
                 if (!cursor.moveToFirst()) return null
                 XposedBridge.log("ColorUp: config bridge connected in " + pkg)
-                JSONObject(cursor.getString(0))
+                JSONObject(ConfigCodec.encode(ConfigCodec.decode(cursor.getString(0))))
             }
         } catch (error: Throwable) {
             XposedBridge.log("ColorUp: config bridge unavailable in " + pkg + ": " + error)
@@ -112,7 +123,8 @@ class ColorUpEntry : IXposedHookLoadPackage {
     }
 
     private fun refreshConfig(context: Context, pkg: String) {
-        val root = readConfig(context, pkg) ?: return
+        // A lost/invalid bridge must not leave old enabled settings active.
+        val root = readConfig(context, pkg) ?: JSONObject(ConfigCodec.encode(AnimationCatalog.defaults))
         appUnlockConfig.set(findAnimation(root, "unlock_to_app")?.let {
             AppUnlockConfig(it.optBoolean("enabled", false), it.optInt("durationMs", 320).coerceIn(0, 2000).toLong())
         })
@@ -129,7 +141,7 @@ class ColorUpEntry : IXposedHookLoadPackage {
                 enabled = it.optBoolean("enabled", false),
                 durationMs = it.optInt("durationMs", 320).coerceIn(0, 2000).toLong(),
                 offsetDp = it.optInt("translateY", 24).coerceIn(-150, 150),
-                scale = it.optDouble("scale", 1.0).toFloat().coerceIn(0.5f, 1.5f),
+                scale = it.optDouble("scale", 1.0).toFloat().coerceIn(0f, 2f),
                 fade = it.optDouble("fade", 1.0).toFloat().coerceIn(0f, 1f),
                 delayMs = it.optInt("delayMs", 0).coerceIn(0, 1000).toLong(),
                 curve = it.optString("curve", "STANDARD"),
@@ -160,7 +172,7 @@ class ColorUpEntry : IXposedHookLoadPackage {
         findAnimation(root, id)?.let {
             PanelConfig(
                 enabled = it.optBoolean("enabled", false),
-                scale = it.optDouble("scale", 1.0).toFloat().coerceIn(0.5f, 1.5f),
+                scale = it.optDouble("scale", 1.0).toFloat().coerceIn(0f, 2f),
                 translateY = it.optInt("translateY", 24).coerceIn(-150, 150),
                 curve = it.optString("curve", "STANDARD"),
                 springDamping = it.optDouble("springDamping", 0.82).toFloat().coerceIn(0.1f, 2f),
@@ -171,7 +183,7 @@ class ColorUpEntry : IXposedHookLoadPackage {
 
     private fun installConfigObserver(context: Context, pkg: String) {
         try {
-            val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            val observer = object : ContentObserver(configWorker) {
                 override fun onChange(selfChange: Boolean) {
                     refreshConfig(context, pkg)
                 }
@@ -199,6 +211,13 @@ class ColorUpEntry : IXposedHookLoadPackage {
                 java.lang.Long.TYPE,
                 object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam) {
+                        if (appUnlockConfig.get()?.enabled != true && keyguardShowConfig.get()?.enabled != true &&
+                            keyguardHideConfig.get()?.enabled != true && screenOnConfig.get()?.enabled != true &&
+                            screenOffConfig.get()?.enabled != true) return
+                        val stack = Thread.currentThread().stackTrace
+                        fun isCallFrom(name: String, method: String? = null) = stack.any {
+                            it.className == name && (method == null || it.methodName == method)
+                        }
                         when {
                             appUnlockAvailable && isCallFrom(appUnlockClass) -> {
                                 val config = appUnlockConfig.get() ?: return
@@ -228,6 +247,8 @@ class ColorUpEntry : IXposedHookLoadPackage {
                     }
                 }
             )
+            if (appUnlockAvailable) installedIds.add("unlock_to_app")
+            if (keyguardAvailable) installedIds.addAll(listOf("keyguard_show", "keyguard_hide", "screen_on", "screen_off"))
             XposedBridge.log("ColorUp: duration hooks installed; appUnlock=" + appUnlockAvailable + ", keyguard=" + keyguardAvailable)
         } catch (error: Throwable) {
             appUnlockHookInstalled.set(false)
@@ -297,6 +318,7 @@ class ColorUpEntry : IXposedHookLoadPackage {
                     }
                 }
             )
+            installedIds.add("notification_appear")
             XposedBridge.log("ColorUp: notification appear hook installed")
         } catch (error: Throwable) {
             notificationHookInstalled.set(false)
@@ -340,6 +362,7 @@ class ColorUpEntry : IXposedHookLoadPackage {
                     }
                 })
             }
+            installedIds.add("notification_dismiss")
             XposedBridge.log("ColorUp: notification dismiss duration hook installed (" + candidates.size + " method(s))")
         } catch (error: Throwable) {
             notificationDismissHookInstalled.set(false)
@@ -348,15 +371,8 @@ class ColorUpEntry : IXposedHookLoadPackage {
     }
 
     private fun notificationInterpolator(config: NotificationConfig): android.view.animation.Interpolator =
-        when (config.curve) {
-            "LINEAR" -> LinearInterpolator()
-            "EASE_IN" -> AccelerateInterpolator()
-            "EASE_OUT" -> DecelerateInterpolator()
-            "EASE_IN_OUT", "STANDARD" -> AccelerateDecelerateInterpolator()
-            "SPRING" -> OvershootInterpolator(
-                ((config.stiffness / 420f) * (1f - config.damping)).coerceIn(0.1f, 3f)
-            )
-            else -> DecelerateInterpolator()
+        android.view.animation.Interpolator { progress ->
+            MotionMath.ease(progress, config.curve, config.damping, config.stiffness)
         }
 
     private fun installPanelExpansionHooks(lpparam: XC_LoadPackage.LoadPackageParam) {
@@ -395,13 +411,17 @@ class ColorUpEntry : IXposedHookLoadPackage {
                 object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam) {
                         val view = param.thisObject as? View ?: return
+                        val expanding = panelExpanding.get()
+                        val shade = if (expanding) shadeOpenConfig.get() else shadeCloseConfig.get()
+                        val quickSettings = if (expanding) qsExpandConfig.get() else qsCollapseConfig.get()
+                        if (shade?.enabled != true && quickSettings?.enabled != true) return
                         val progress = panelProgress.get()
-                        if (progress <= 0f) return
+                        if (progress <= 0f || !progress.isFinite()) return
                         val config = when {
                             isInsideNamedRoot(view, "sec_quick_panel_compose_root") ->
-                                if (panelExpanding.get()) qsExpandConfig.get() else qsCollapseConfig.get()
+                                quickSettings
                             isInsideNamedRoot(view, "shadeRootView") ->
-                                if (panelExpanding.get()) shadeOpenConfig.get() else shadeCloseConfig.get()
+                                shade
                             else -> null
                         } ?: return
                         if (!config.enabled) return
@@ -429,6 +449,7 @@ class ColorUpEntry : IXposedHookLoadPackage {
                     }
                 }
             )
+            installedIds.addAll(listOf("shade_open", "shade_close", "qs_expand", "qs_collapse"))
             XposedBridge.log("ColorUp: panel expansion hooks installed (split=" + splitHooks.size + ", depth=" + depthHooks.size + ")")
         } catch (error: Throwable) {
             panelHooksInstalled.set(false)
@@ -450,12 +471,6 @@ class ColorUpEntry : IXposedHookLoadPackage {
         }
         return false
     }
-
-    private fun isCallFrom(className: String): Boolean =
-        Thread.currentThread().stackTrace.any { it.className == className }
-
-    private fun isCallFrom(className: String, methodName: String): Boolean =
-        Thread.currentThread().stackTrace.any { it.className == className && it.methodName == methodName }
 
     private fun findAnimation(root: JSONObject, id: String): JSONObject? {
         val animations = root.optJSONArray("animations") ?: return null

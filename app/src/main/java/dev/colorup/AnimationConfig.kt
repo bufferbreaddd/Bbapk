@@ -61,12 +61,15 @@ object AnimationCatalog {
 }
 
 object ConfigCodec {
+    const val MAX_IMPORT_BYTES = 256 * 1024
     private const val SCHEMA = 2
 
     fun encode(specs: List<AnimationSpec>): String {
         val root = JSONObject().put("schemaVersion", SCHEMA)
         root.put("animations", JSONArray().apply {
-            specs.forEach { s ->
+            val byId = specs.associateBy { it.id }
+            AnimationCatalog.defaults.forEach { base ->
+                val s = sanitize(byId[base.id] ?: base)
                 put(JSONObject()
                     .put("id", s.id).put("enabled", s.enabled && s.id in AnimationCatalog.experimentalHookIds)
                     .put("durationMs", s.durationMs.coerceIn(0, 2000))
@@ -83,7 +86,10 @@ object ConfigCodec {
     }
 
     fun decode(json: String): MutableList<AnimationSpec> {
+        require(json.toByteArray(Charsets.UTF_8).size <= MAX_IMPORT_BYTES) { "Profile file is too large (maximum 256 KB)" }
         val root = JSONObject(json)
+        val version = root.optInt("schemaVersion", 1)
+        require(version in 1..SCHEMA) { "Unsupported profile version: $version" }
         val array = root.optJSONArray("animations") ?: throw IllegalArgumentException("Missing animations array")
         val defaults = AnimationCatalog.defaults.associateBy { it.id }
         val imported = mutableMapOf<String, AnimationSpec>()
@@ -93,7 +99,7 @@ object ConfigCodec {
             val base = defaults[id] ?: continue
             val curve = item.optString("curve", base.curve).takeIf { it in CURVES } ?: base.curve
             val direction = item.optString("direction", base.direction).takeIf { it in DIRECTIONS } ?: base.direction
-            imported[id] = base.copy(
+            imported[id] = sanitize(base.copy(
                 enabled = item.optBoolean("enabled", false) && id in AnimationCatalog.experimentalHookIds,
                 durationMs = item.optInt("durationMs", 320).coerceIn(0, 2000),
                 curve = curve,
@@ -104,10 +110,26 @@ object ConfigCodec {
                 springDamping = item.optDouble("springDamping", 0.82).toFloat().coerceIn(0.1f, 2f),
                 springStiffness = item.optDouble("springStiffness", 420.0).toFloat().coerceIn(50f, 1500f),
                 direction = direction
-            )
+            ))
         }
         return AnimationCatalog.defaults.map { imported[it.id] ?: it.copy() }.toMutableList()
     }
+
+    private fun finite(value: Float, fallback: Float, min: Float, max: Float) =
+        if (value.isFinite()) value.coerceIn(min, max) else fallback
+
+    private fun sanitize(s: AnimationSpec): AnimationSpec = s.copy(
+        enabled = s.enabled && s.id in AnimationCatalog.experimentalHookIds,
+        durationMs = s.durationMs.coerceIn(0, 2000),
+        delayMs = s.delayMs.coerceIn(0, 1000),
+        translateY = s.translateY.coerceIn(-150, 150),
+        scale = finite(s.scale, 1f, 0f, 2f),
+        fade = finite(s.fade, 1f, 0f, 1f),
+        springDamping = finite(s.springDamping, 0.82f, 0.1f, 2f),
+        springStiffness = finite(s.springStiffness, 420f, 50f, 1500f),
+        curve = s.curve.takeIf { it in CURVES } ?: "STANDARD",
+        direction = s.direction.takeIf { it in DIRECTIONS } ?: "UP"
+    )
 
     val CURVES = setOf("STANDARD", "LINEAR", "EASE_IN", "EASE_OUT", "EASE_IN_OUT", "SPRING")
     val DIRECTIONS = setOf("UP", "DOWN", "LEFT", "RIGHT", "CENTER")
@@ -116,7 +138,8 @@ object ConfigCodec {
 
 object MotionMath {
     fun ease(progress: Float, curve: String, damping: Float, stiffness: Float): Float {
-        val t = progress.coerceIn(0f, 1f)
+        val t = if (progress.isFinite()) progress.coerceIn(0f, 1f) else 0f
+        if (t == 0f || t == 1f) return t
         val value = when (curve) {
             "LINEAR" -> t
             "EASE_IN" -> t * t
@@ -125,7 +148,8 @@ object MotionMath {
             "SPRING" -> {
                 val frequency = sqrt((stiffness.coerceIn(50f, 1500f) / 420f).toDouble()) * 6.0
                 val decay = exp(-damping.coerceIn(0.1f, 2f).toDouble() * 6.0 * t.toDouble())
-                (1.0 - decay * cos(frequency * t.toDouble())).toFloat()
+                val rest = 1.0 - exp(-damping.coerceIn(0.1f, 2f).toDouble() * 6.0) * cos(frequency)
+                ((1.0 - decay * cos(frequency * t.toDouble())) / rest).toFloat()
             }
             else -> 1f - (1f - t) * (1f - t)
         }

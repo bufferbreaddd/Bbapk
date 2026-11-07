@@ -1,38 +1,45 @@
-# Installing the ColorUp preview
+# Install, connect and recover
 
-## Build artifact
+Target: Galaxy A35 5G / One UI 8.5. ColorUp uses the legacy Xposed API (82),
+so the installed framework must support legacy modules. Root alone is insufficient.
 
-1. Open the repository's [GitHub Actions](https://github.com/bufferbreaddd/Bbapk/actions).
-2. Open the latest successful **Build ColorUp** run.
-3. Download the `ColorUp-debug` artifact and extract the APK.
-4. Install the APK on the test device.
+## Install/update
 
-The artifact is a debug build. It is not a Play Store release.
+1. Export your existing profiles before replacing an older build.
+2. Install ColorUp 2 and open it once. The package is still `dev.colorup`.
+3. Enable ColorUp in your LSPosed/Vector manager.
+4. Confirm **System UI (`com.android.systemui`)** is selected in scope. This is the
+   module's declared legacy recommendation, not a normal Android permission dialog.
+   No Launcher or System Framework scope is needed for the implemented hooks.
+5. Reboot. Open Setup and inspect connection/runtime information.
+6. Start with one experimental duration control; save and test its exact transition.
 
-## Enable the module
+Settings are migrated from v1 JSON automatically. Preview-only transitions cannot be
+enabled. Presets/imports stage a draft until Save. Disable all writes immediately
+and preserves motion values. The saved configuration lives in private app preferences;
+root access and `/data/adb/colorup/config.json` are not needed in v2.
 
-1. Open the installed ColorUp app once.
-2. In Vector's module manager, enable ColorUp.
-3. Scope it to:
-   - `com.android.systemui`
-   - `com.sec.android.app.launcher`
-4. Restart the device so the module is loaded into those processes.
-5. Open ColorUp again. A successful provider connection should show a runtime heartbeat.
+Different debug builds may be signed with different debug keys. Android rejects
+an in-place update with an incompatible signature. Export first; if a reinstall is
+necessary, import the backup afterwards, re-enable the module and reboot. Do not
+uninstall before preserving settings you want to keep.
 
-ColorUp uses the legacy Xposed API. The root manager alone is not the module runtime; the module manager must actually load the Xposed entry point.
+## Connection and support
 
-## First test
-
-Enable one experimental control at a time:
-- App unlock duration
-- Notification shade open/close
-- Quick Settings expand/collapse
-- Notification appearance
-
-Save after each change and test the corresponding transition. Only the parameters listed in [hook status](HOOK-STATUS.md) currently affect One UI. The rest are configuration and in-app preview controls.
+A last connection is a record, not a live activation check. The last runtime version
+can be older than the app until you reboot. Installed candidates report successful
+hook registration, not successful animation interception. The diagnostics report
+includes model, build, fingerprint, runtime version and candidate IDs; copy it when
+reporting compatibility issues.
 
 ## Recovery
 
-- Use **Disable all hooks & save** in ColorUp to return its settings to stock values.
-- If SystemUI becomes unstable, disable ColorUp in the module manager and restart the device.
-- All experimental hooks are off by default.
+- In ColorUp, use Overview/Setup → Disable all hooks. The provider notifies the runtime.
+- If an animation remains altered, disable ColorUp in the framework manager and reboot.
+- If SystemUI cannot open, use the framework's own module-disable/recovery procedure.
+- No boot images or system APKs are patched by ColorUp.
+
+If a provider read fails or configuration is invalid, runtime settings fall back to
+all hooks off. Existing enabled settings are not retained indefinitely after bridge
+failure. Samsung method/class differences require firmware-specific verification;
+missing methods are not replaced with guessed hooks.

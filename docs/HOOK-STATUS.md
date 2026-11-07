@@ -42,7 +42,7 @@ These are Android SystemUI callsite candidates, not verified Samsung One UI meth
 | `qs_expand` | Quick Settings expanding | `sec_quick_panel_compose_root` |
 | `qs_collapse` | Quick Settings collapsing | `sec_quick_panel_compose_root` |
 
-The pipeline uses Samsung panel-expansion callbacks and `AndroidComposeView.dispatchDraw(Canvas)`. It transforms only the Compose view whose ancestry contains the matching resource ID. Canvas state is saved and restored around the original draw. Only scale and vertical offset are applied; fade, duration, spring, direction and delay remain preview/config values.
+The pipeline uses Samsung panel-expansion callbacks and `AndroidComposeView.dispatchDraw(Canvas)`. It transforms only the Compose view whose ancestry contains the matching resource ID. Canvas state is saved and restored around the original draw. Scale, vertical offset, easing curve, spring damping/stiffness and direction anchor are applied. Fade, duration and delay do not control these gesture-driven transitions.
 
 ## Experimental candidate: notification appearance
 
@@ -77,13 +77,13 @@ The remaining 7 IDs have independent configuration and in-app preview controls, 
 
 - Provider URI: `content://dev.colorup.config/config`
 - Read-only provider; caller package and UID are checked.
-- SystemUI and Launcher register content observers and refresh settings after ColorUp saves.
+- SystemUI registers a content observer and refreshes settings on a background worker after ColorUp saves. A failed/invalid bridge read disables active overrides.
 - The app records a runtime heartbeat when a scoped process successfully queries the provider.
 
 ## Verification still required
 
 1. Build the APK in GitHub Actions.
-2. Enable ColorUp in a compatible legacy Xposed runtime and scope SystemUI and Samsung Launcher. Launcher remains in the scope list for future work, but no active Launcher transition hook is installed; unlock-to-home remains preview-only.
+2. Enable ColorUp in a compatible legacy Xposed runtime and scope SystemUI only. Launcher has no active transition hooks and is not a required scope; unlock-to-home remains preview-only.
 3. Confirm the runtime heartbeat appears in ColorUp.
 4. Enable one experimental transition at a time and save.
 5. Test screen on/off, keyguard show/hide, app-unlock, shade open/close, Quick Settings expand/collapse, notification appearance and notification dismissal separately.
@@ -92,3 +92,10 @@ The remaining 7 IDs have independent configuration and in-app preview controls, 
 8. Test on the exact One UI build and record the build fingerprint.
 
 Missing classes or resources must result in an unavailable capability, not guessed replacement hooks.
+
+## Version 2 diagnostics
+
+The legacy manifest declares `xposedscope` with SystemUI. Runtime queries report
+registered candidate IDs and the runtime module version. Setup shows their last
+recorded values and the device build. Registration does not prove that Samsung
+invokes the hook or that a target root ID exists on the current firmware.

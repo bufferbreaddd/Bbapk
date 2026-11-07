@@ -1,0 +1,20 @@
+<resources>
+    <style name="Theme.ColorUp" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">#B7D19F</item>
+        <item name="colorOnPrimary">#243515</item>
+        <item name="colorPrimaryContainer">#3A4D2A</item>
+        <item name="colorOnPrimaryContainer">#D2EABD</item>
+        <item name="colorSecondaryContainer">#41483A</item>
+        <item name="colorOnSecondaryContainer">#E0E4D6</item>
+        <item name="android:colorBackground">#11150E</item>
+        <item name="colorSurface">#11150E</item>
+        <item name="colorSurfaceContainer">#1D211A</item>
+        <item name="colorOnSurface">#E1E5D8</item>
+        <item name="colorOnSurfaceVariant">#C4C8BA</item>
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowSoftInputMode">adjustResize</item>
+    </style>
+</resources>

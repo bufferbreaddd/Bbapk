@@ -75,4 +75,54 @@ class AnimationConfigTest {
             assertTrue(value in 0f..1.15f)
         }
     }
+    @Test(expected = IllegalArgumentException::class)
+    fun futureSchemaIsRejectedRatherThanSilentlyReinterpreted() {
+        ConfigCodec.decode("""{"schemaVersion":999,"animations":[]}""")
+    }
+
+    @Test
+    fun springSettlesExactlyAtRestForEveryAllowedResponse() {
+        for (damping in listOf(0.1f, 0.82f, 2f)) {
+            for (stiffness in listOf(50f, 420f, 1500f)) {
+                assertEquals(1f, MotionMath.ease(1f, "SPRING", damping, stiffness), 0.00001f)
+                assertEquals(0f, MotionMath.ease(0f, "SPRING", damping, stiffness), 0.00001f)
+            }
+        }
+    }
+
+    @Test
+    fun encoderCanonicalizesEnumsAndNonFiniteNumbers() {
+        val source = AnimationCatalog.defaults.map { it.copy() }
+        source[1].scale = Float.NaN
+        source[1].springStiffness = Float.POSITIVE_INFINITY
+        source[1].curve = "BROKEN"
+        source[1].direction = "BROKEN"
+        val result = ConfigCodec.decode(ConfigCodec.encode(source))[1]
+        assertEquals(1f, result.scale)
+        assertEquals(420f, result.springStiffness)
+        assertEquals("STANDARD", result.curve)
+        assertEquals("UP", result.direction)
+    }
+
+    @Test
+    fun legacySchemaImportsWithoutLosingKnownSettings() {
+        val result = ConfigCodec.decode("""{"animations":[{"id":"unlock_to_app","enabled":true,"durationMs":640}]}""")
+        assertEquals(18, result.size)
+        assertEquals(640, result[1].durationMs)
+        assertTrue(result[1].enabled)
+        assertFalse(result[0].enabled)
+    }
+    @Test(expected = IllegalArgumentException::class)
+    fun oversizedImportIsRejectedBeforeParsing() {
+        ConfigCodec.decode(" ".repeat(256 * 1024 + 1))
+    }
+
+    @Test fun canonicalExportKeepsKnownTransitionsAndDisablesUnknownEnables() {
+        val source = listOf(AnimationSpec("invented", "Bad", "Bad", enabled = true), AnimationCatalog.defaults[1].copy(enabled = true))
+        val result = ConfigCodec.decode(ConfigCodec.encode(source))
+        assertEquals(18, result.size)
+        assertEquals("unlock_to_home", result[0].id)
+        assertTrue(result[1].enabled)
+        assertEquals(1, result.count { it.enabled })
+    }
 }
