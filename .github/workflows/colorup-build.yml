@@ -2,9 +2,11 @@ name: Build ColorUp
 
 on:
   push:
-    branches: [main]
+    branches: [main, codex/colorup-v2]
     paths:
       - "app/**"
+      - "release-tag.txt"
+      - "docs/releases/**"
       - "*.gradle.kts"
       - "gradle.properties"
       - "gradlew"
@@ -13,6 +15,8 @@ on:
   pull_request:
     paths:
       - "app/**"
+      - "release-tag.txt"
+      - "docs/releases/**"
       - "*.gradle.kts"
       - "gradle.properties"
       - "gradlew"
@@ -91,3 +95,57 @@ jobs:
         with:
           name: ColorUp-ui-tests
           path: app/build/reports/androidTests/connected/
+
+  publish-beta:
+    needs: [assemble, ui-tests]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/codex/colorup-v2')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate prerelease tag and notes
+        id: release
+        shell: bash
+        run: |
+          tag="$(tr -d '\r\n' < release-tag.txt)"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-(beta|rc)\.[0-9]+$ ]]; then
+            echo "Expected a beta or rc tag such as v2.0.0-beta.1" >&2
+            exit 1
+          fi
+          test -s "docs/releases/$tag.md"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        with:
+          name: ColorUp-debug
+          path: release-assets
+      - name: Publish tested APK as a GitHub prerelease
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists; leaving it intact."
+            exit 0
+          fi
+          remote_tag="$(git ls-remote --tags origin "refs/tags/$RELEASE_TAG" "refs/tags/$RELEASE_TAG^{}")"
+          if [[ -n "$remote_tag" ]]; then
+            git fetch --no-tags origin "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+            tagged_commit="$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")"
+            if [[ "$tagged_commit" != "$GITHUB_SHA" ]]; then
+              echo "Existing tag $RELEASE_TAG points to another commit; choose a new beta tag." >&2
+              exit 1
+            fi
+          fi
+          apk="ColorUp-${RELEASE_TAG#v}.apk"
+          mv release-assets/app-debug.apk "release-assets/$apk"
+          cp docs/INSTALL.md release-assets/INSTALL.md
+          (cd release-assets && sha256sum "$apk" > SHA256SUMS.txt)
+          gh release create "$RELEASE_TAG" \
+            "release-assets/$apk" release-assets/SHA256SUMS.txt release-assets/INSTALL.md \
+            --target "$GITHUB_SHA" --title "ColorUp ${RELEASE_TAG#v}" \
+            --notes-file "docs/releases/$RELEASE_TAG.md" --prerelease --latest=false --draft
+          gh release edit "$RELEASE_TAG" --draft=false --prerelease --latest=false

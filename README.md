@@ -71,3 +71,7 @@ a separately signed debug APK may require backup and reinstall.
 
 The repository includes a FluidMotion reference APK and technical hook inventory;
 decompiled reference source is not redistributed.
+
+## Beta downloads
+
+Installable beta APKs are published on [GitHub Releases](https://github.com/bufferbreaddd/Bbapk/releases). Beta/RC publishing is described in [the release guide](docs/RELEASING.md).
