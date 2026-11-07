@@ -101,6 +101,7 @@ class MainActivity : AppCompatActivity() {
         toolbar = MaterialToolbar(this).apply {
             title = "ColorUp"
             setTitleTextColor(tone(com.google.android.material.R.attr.colorOnSurface))
+            setNavigationIconTint(tone(com.google.android.material.R.attr.colorOnSurface))
             setNavigationOnClickListener { editingId = null; renderPage() }
         }
         root.addView(toolbar)
