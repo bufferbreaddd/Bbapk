@@ -2,17 +2,25 @@ name: Build ColorUp
 
 on:
   push:
-    branches: [main]
+    branches: [main, codex/colorup-v2]
     paths:
       - "app/**"
+      - "release-tag.txt"
+      - "docs/releases/**"
       - "*.gradle.kts"
       - "gradle.properties"
+      - "gradlew"
+      - "gradle/wrapper/**"
       - ".github/workflows/colorup-build.yml"
   pull_request:
     paths:
       - "app/**"
+      - "release-tag.txt"
+      - "docs/releases/**"
       - "*.gradle.kts"
       - "gradle.properties"
+      - "gradlew"
+      - "gradle/wrapper/**"
       - ".github/workflows/colorup-build.yml"
   workflow_dispatch:
 
@@ -45,10 +53,99 @@ jobs:
         with:
           gradle-version: "8.11.1"
       - name: Build debug APK
-        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug --stacktrace
+        run: ./gradlew --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: ColorUp-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+  ui-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Install Android platform and build tools
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Android UI regression tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: default
+          arch: x86_64
+          disk-size: 6G
+          disable-animations: true
+          script: ./gradlew --no-daemon :app:connectedDebugAndroidTest
+      - name: Upload UI test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ColorUp-ui-tests
+          path: app/build/reports/androidTests/connected/
+
+  publish-beta:
+    needs: [assemble, ui-tests]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/codex/colorup-v2')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate prerelease tag and notes
+        id: release
+        shell: bash
+        run: |
+          tag="$(tr -d '\r\n' < release-tag.txt)"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-(beta|rc)\.[0-9]+$ ]]; then
+            echo "Expected a beta or rc tag such as v2.0.0-beta.1" >&2
+            exit 1
+          fi
+          test -s "docs/releases/$tag.md"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        with:
+          name: ColorUp-debug
+          path: release-assets
+      - name: Publish tested APK as a GitHub prerelease
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists; leaving it intact."
+            exit 0
+          fi
+          remote_tag="$(git ls-remote --tags origin "refs/tags/$RELEASE_TAG" "refs/tags/$RELEASE_TAG^{}")"
+          if [[ -n "$remote_tag" ]]; then
+            git fetch --no-tags origin "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+            tagged_commit="$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")"
+            if [[ "$tagged_commit" != "$GITHUB_SHA" ]]; then
+              echo "Existing tag $RELEASE_TAG points to another commit; choose a new beta tag." >&2
+              exit 1
+            fi
+          fi
+          apk="ColorUp-${RELEASE_TAG#v}.apk"
+          mv release-assets/app-debug.apk "release-assets/$apk"
+          cp docs/INSTALL.md release-assets/INSTALL.md
+          (cd release-assets && sha256sum "$apk" > SHA256SUMS.txt)
+          gh release create "$RELEASE_TAG" \
+            "release-assets/$apk" release-assets/SHA256SUMS.txt release-assets/INSTALL.md \
+            --target "$GITHUB_SHA" --title "ColorUp ${RELEASE_TAG#v}" \
+            --notes-file "docs/releases/$RELEASE_TAG.md" --prerelease --latest=false --draft
+          gh release edit "$RELEASE_TAG" --draft=false --prerelease --latest=false

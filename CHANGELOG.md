@@ -1,3 +1,21 @@
+# 2.0.0 — Material motion studio
+
+- Rebuilt the settings UI with Material 3, wallpaper colours, light/dark/system themes,
+  four destinations, category filters, search, focused editors and sliders.
+- Added curve graphs and motion previews sharing runtime easing conventions.
+- Preserved drafts and v1 profiles; added explicit support labels and per-transition reset.
+- Fixed legacy scope recommendations: SystemUI only. Added setup, runtime candidate
+  reports, device/build diagnostics and an immediate disable-all that keeps tuning.
+- Removed UI-blocking automatic root export; background JSON document backup/import.
+- Kept status notices from blocking navigation or the disable-all control.
+- Rejected oversized/future backups and normalized invalid export values.
+- Fixed spring endpoint discontinuity; runtime config reads moved off the UI thread,
+  bridge failure disables hooks, and disabled hooks avoid expensive per-frame work.
+- Added reproducible Gradle wrapper and regression/UI checks.
+
+Engine status: 11 experimental candidates; 7 transitions remain preview-only.
+Galaxy A35 5G / One UI 8.5 hardware validation remains pending.
+
 # Changelog
 
 ## 1.0.0-rc1

@@ -1,0 +1,4 @@
+<resources>
+    <!-- Legacy Xposed module: recommend only processes with installed hooks. -->
+    <string-array name="xposed_scope"><item>com.android.systemui</item></string-array>
+</resources>

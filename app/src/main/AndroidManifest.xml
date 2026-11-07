@@ -1,5 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <application android:allowBackup="false" android:label="ColorUp" android:theme="@android:style/Theme.Material.NoActionBar">
+    <queries><package android:name="com.android.systemui"/><package android:name="com.sec.android.app.launcher"/><package android:name="org.lsposed.manager"/></queries>
+    <application android:icon="@drawable/ic_app" android:forceQueryable="true" android:allowBackup="false" android:label="ColorUp" android:theme="@style/Theme.ColorUp">
+        <meta-data android:name="xposedscope" android:resource="@array/xposed_scope" />
         <meta-data android:name="xposedmodule" android:value="true" />
         <meta-data android:name="xposeddescription" android:value="Independent One UI animation controls" />
         <meta-data android:name="xposedminversion" android:value="82" />

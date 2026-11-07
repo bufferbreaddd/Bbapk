@@ -1,0 +1,7 @@
+<resources>
+    <item name="nav_overview" type="id"/>
+    <item name="nav_motion" type="id"/>
+    <item name="nav_presets" type="id"/>
+    <item name="nav_setup" type="id"/>
+    <item name="save_config" type="id"/>
+</resources>

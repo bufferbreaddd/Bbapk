@@ -12,7 +12,7 @@ class ConfigProvider : ContentProvider() {
     override fun onCreate() = true
 
     override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor {
-        val allowed = setOf("com.android.systemui", "com.sec.android.app.launcher", "dev.colorup")
+        val allowed = setOf("com.android.systemui", "dev.colorup")
         val caller = callingPackage
             ?: throw SecurityException("Caller identity was not supplied")
         if (caller !in allowed) throw SecurityException("Caller is outside ColorUp's allowlist")
@@ -22,7 +22,14 @@ class ConfigProvider : ContentProvider() {
         if (uri.path != "/config") throw IllegalArgumentException("Unknown config endpoint")
         val preferences = context?.getSharedPreferences("colorup", android.content.Context.MODE_PRIVATE)
         if (caller != "dev.colorup") {
-            preferences?.edit()?.putString("last_runtime_seen_pkg", caller)?.putLong("last_runtime_seen_at", System.currentTimeMillis())?.apply()
+            preferences?.edit()?.apply {
+                putString("last_runtime_seen_pkg", caller)
+                putLong("last_runtime_seen_at", System.currentTimeMillis())
+                uri.getQueryParameter("installed")?.let { report ->
+                    putString("runtime_hooks", report.split(',').filter { it in AnimationCatalog.experimentalHookIds }.distinct().joinToString(","))
+                    putString("runtime_version", uri.getQueryParameter("version")?.take(32) ?: "unknown")
+                }
+            }?.apply()
         }
         val json = preferences?.getString("config_json", null) ?: ConfigCodec.encode(AnimationCatalog.defaults)
         return MatrixCursor(arrayOf("json")).apply { addRow(arrayOf(json)) }
